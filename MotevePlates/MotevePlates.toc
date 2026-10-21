@@ -1,0 +1,16 @@
+## Interface: 16001
+## Title: |cffa88bffMoteve|r Plates
+## Notes: Three nameplate skins, role-aware threat colors, health, cast bars and player debuffs. /mp
+## Notes-huHU: Három névtábla-skin, tank/DPS aggrojelzés, cast sávok és saját debuffok. /mp
+## Author: Zoltán Gosztonyi
+## Version: 0.1.5
+## OptionalDeps: Questie
+## SavedVariables: MotevePlatesDB
+
+Core.lua
+Threat.lua
+Skins.lua
+Auras.lua
+Quest.lua
+Plates.lua
+Options.lua

@@ -1,0 +1,108 @@
+local _,ns=...
+local WHITE=ns.WHITE
+ns.Skins={
+    minimal={label="Minimal",edge={0.65,0.68,0.72},accent={0.94,0.96,1},bg={0.025,0.027,0.03},texture=WHITE},
+    classic={label="Classic",edge={0.57,0.43,0.21},accent={1,0.82,0.38},bg={0.055,0.04,0.025},texture="Interface\\TargetingFrame\\UI-StatusBar"},
+    moteve={label="Moteve",edge={0.43,0.35,0.65},accent={0.5,0.85,1},bg={0.035,0.045,0.10},texture=WHITE},
+}
+function ns.Font(parent,size,bold)
+    local f=parent:CreateFontString(nil,"OVERLAY")
+    f:SetFont(ns.MEDIA.."Fonts\\"..(bold and "Barlow-SemiBold.ttf" or "Barlow-Regular.ttf"),size,"")
+    f:SetShadowColor(0,0,0,1);f:SetShadowOffset(1,-1);f:SetWordWrap(false)
+    f:SetTextColor(0.95,0.95,0.98)
+    return f
+end
+local function Backdrop(frame,skin,target,noFill)
+    local s=ns.Skins[skin]
+    frame:SetBackdrop({bgFile=WHITE,edgeFile=skin=="classic" and "Interface\\Tooltips\\UI-Tooltip-Border" or WHITE,
+        edgeSize=skin=="classic" and 9 or 1,insets={left=1,right=1,top=1,bottom=1}})
+    frame:SetBackdropColor(s.bg[1],s.bg[2],s.bg[3],noFill and 0 or 0.96)
+    local c=target and s.accent or s.edge
+    frame:SetBackdropBorderColor(c[1],c[2],c[3],1)
+end
+function ns.CreatePlate(parent)
+    local f=CreateFrame("Frame",nil,parent)
+    f:EnableMouse(false)
+    f:SetFrameLevel(parent:GetFrameLevel()+10)
+    f.glow=CreateFrame("Frame",nil,f,"BackdropTemplate");f.glow:EnableMouse(false)
+    f.glow:SetPoint("TOPLEFT",-3,3);f.glow:SetPoint("BOTTOMRIGHT",3,-3)
+    f.glow:SetBackdrop({edgeFile=WHITE,edgeSize=2});f.glow:SetBackdropBorderColor(0.56,0.38,1,0.22)
+    f.chrome=CreateFrame("Frame",nil,f,"BackdropTemplate");f.chrome:SetAllPoints();f.chrome:EnableMouse(false)
+    f.health=CreateFrame("StatusBar",nil,f);f.health:EnableMouse(false)
+    f.health:SetFrameLevel(f.chrome:GetFrameLevel()+1)
+    f.health.sheen=f.health:CreateTexture(nil,"OVERLAY");f.health.sheen:SetPoint("TOPLEFT");f.health.sheen:SetPoint("TOPRIGHT");f.health.sheen:SetHeight(1)
+    f.health.sheen:SetColorTexture(1,1,1,0.14)
+    f.healthText=ns.Font(f.health,11,true);f.healthText:SetPoint("LEFT",5,0)
+    f.healthText:SetJustifyH("LEFT")
+    f.healthPct=ns.Font(f.health,11,true);f.healthPct:SetPoint("RIGHT",-5,0)
+    f.healthPct:SetJustifyH("RIGHT")
+    f.name=ns.Font(f,13,true);f.name:SetPoint("BOTTOMLEFT",f,"TOPLEFT",0,4);f.name:SetJustifyH("LEFT")
+    f.questBadge=CreateFrame("Frame",nil,f);f.questBadge:EnableMouse(false)
+    f.questBadge:SetSize(12,16);f.questBadge:SetPoint("RIGHT",f.name,"LEFT",-3,0)
+    f.questBadge.icon=ns.Font(f.questBadge,14,true);f.questBadge.icon:SetText("!")
+    f.questBadge.icon:SetPoint("CENTER");f.questBadge.icon:SetTextColor(0.88,0.73,0.40)
+    f.questBadge:Hide()
+    f.level=ns.Font(f.chrome,10,true);f.level:SetPoint("LEFT",4,0);f.level:SetWidth(19);f.level:SetJustifyH("CENTER")
+    f.targetLeft=ns.Font(f,22,true);f.targetLeft:SetText("›");f.targetLeft:SetPoint("RIGHT",f,"LEFT",-4,0)
+    f.targetRight=ns.Font(f,22,true);f.targetRight:SetText("‹");f.targetRight:SetPoint("LEFT",f,"RIGHT",4,0)
+    f.cast=CreateFrame("StatusBar",nil,f);f.cast:EnableMouse(false)
+    f.cast.bg=f.cast:CreateTexture(nil,"BACKGROUND");f.cast.bg:SetAllPoints();f.cast.bg:SetColorTexture(0.025,0.025,0.03,0.94)
+    f.cast.edge=CreateFrame("Frame",nil,f.cast,"BackdropTemplate");f.cast.edge:SetAllPoints();f.cast.edge:EnableMouse(false)
+    f.cast.name=ns.Font(f.cast,10,true);f.cast.name:SetPoint("LEFT",5,0);f.cast.name:SetJustifyH("LEFT")
+    f.cast.time=ns.Font(f.cast,10,true);f.cast.time:SetPoint("RIGHT",-3,0);f.cast.time:SetJustifyH("RIGHT")
+    f.cast.icon=f:CreateTexture(nil,"ARTWORK");f.cast.icon:SetTexCoord(0.08,0.92,0.08,0.92)
+    f.threatText=ns.Font(f,10,true);f.threatText:SetJustifyH("LEFT")
+    f.threatPct=ns.Font(f,10,true);f.threatPct:SetJustifyH("RIGHT")
+    f.raid=f:CreateTexture(nil,"OVERLAY");f.raid:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons");f.raid:SetSize(18,18)
+    f.raid:SetPoint("BOTTOM",f,"TOP",0,54)
+    f.auras={}
+    for i=1,12 do
+        local a=CreateFrame("Frame",nil,f,"BackdropTemplate");a:SetSize(19,19);a:EnableMouse(false)
+        a.icon=a:CreateTexture(nil,"ARTWORK");a.icon:SetAllPoints();a.icon:SetTexCoord(0.08,0.92,0.08,0.92)
+        a.cooldown=CreateFrame("Cooldown",nil,a,"CooldownFrameTemplate");a.cooldown:SetAllPoints();a.cooldown:EnableMouse(false)
+        a.timer=ns.Font(a,9,true);a.timer:SetPoint("BOTTOM",0,-10)
+        a.count=ns.Font(a,9,true);a.count:SetPoint("TOPRIGHT",1,0)
+        a:SetPoint("BOTTOMLEFT",f,"TOPLEFT",((i-1)%6)*23,30+math.floor((i-1)/6)*31);a:Hide()
+        f.auras[i]=a
+    end
+    return f
+end
+function ns.StylePlate(f,skin,options)
+    local d=options or ns.db
+    local s=ns.Skins[skin]
+    f.skin=skin
+    f:SetSize(d.width,d.height)
+    f.name:SetWidth(d.width)
+    f.name:SetFont(ns.MEDIA.."Fonts\\"..(skin=="classic" and "Marcellus-Regular.ttf" or "Barlow-SemiBold.ttf"),13,"")
+    f.level:SetShown(d.showLevel)
+    f.level:SetTextColor(s.accent[1],s.accent[2],s.accent[3])
+    local left=d.showLevel and 25 or 2
+    f.health:ClearAllPoints();f.health:SetPoint("TOPLEFT",left,-2);f.health:SetPoint("BOTTOMRIGHT",-2,2)
+    f.health:SetStatusBarTexture(s.texture)
+    f.healthText:SetWidth((d.width-left)*0.57)
+    f.healthPct:SetWidth((d.width-left)*0.35)
+    f.cast:ClearAllPoints();f.cast:SetPoint("TOPLEFT",f,"BOTTOMLEFT",19,-4)
+    f.cast:SetPoint("TOPRIGHT",f,"BOTTOMRIGHT",0,-4);f.cast:SetHeight(13)
+    f.cast:SetStatusBarTexture(s.texture)
+    f.cast.name:SetWidth(d.width-65);f.cast.time:SetWidth(40)
+    f.cast.icon:SetSize(15,15);f.cast.icon:ClearAllPoints();f.cast.icon:SetPoint("RIGHT",f.cast,"LEFT",-3,0)
+    Backdrop(f.chrome,skin,false);Backdrop(f.cast.edge,skin,false,true)
+    f.lastTarget=nil
+    f.targetLeft:SetTextColor(s.accent[1],s.accent[2],s.accent[3])
+    f.targetRight:SetTextColor(s.accent[1],s.accent[2],s.accent[3])
+end
+function ns.TargetStyle(f,target,hasTarget)
+    if f.lastTarget~=target then Backdrop(f.chrome,f.skin,target);f.lastTarget=target end
+    f.targetLeft:SetShown(target);f.targetRight:SetShown(target)
+    f.glow:SetShown(target and f.skin=="moteve")
+    f:SetAlpha(ns.db.dimOthers and hasTarget and not target and 0.72 or 1)
+    f:SetScale(ns.db.scale*(target and 1.05 or 1))
+end
+function ns.PlaceThreatText(f,visible,options)
+    local d=options or ns.db
+    f.threatText:ClearAllPoints();f.threatPct:ClearAllPoints()
+    local y=f.cast:IsShown() and -23 or -5
+    f.threatText:SetPoint("TOPLEFT",f,"BOTTOMLEFT",0,y);f.threatText:SetWidth(d.width-58)
+    f.threatPct:SetPoint("TOPRIGHT",f,"BOTTOMRIGHT",0,y);f.threatPct:SetWidth(56)
+    f.threatText:SetShown(visible and d.showAggro);f.threatPct:SetShown(visible and d.showThreatPercent)
+end
