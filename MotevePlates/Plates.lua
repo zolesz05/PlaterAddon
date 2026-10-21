@@ -140,9 +140,9 @@ function ns.UpdatePlate(f,auras)
     f:Show();Health(f);Metadata(f);Cast(f);ns.UpdateQuestMarker(f)
     local target=ns.Bool(ns.API(UnitIsUnit,unit,"target"))==true
     ns.TargetStyle(f,target,ns.Bool(ns.API(UnitExists,"target"))==true)
-    local state,percent=ns.ReadThreat(unit)
+    local state,percent,baseState=ns.ReadThreat(unit)
     f.threatState=state
-    local color=ns.db.colorThreat and state.color or ns.ThreatStates.neutral.color
+    local color=ns.db.colorThreat and state.color or baseState.color
     f.health:SetStatusBarColor(color[1],color[2],color[3])
     local visible=state.key~="neutral" and state.key~="tapped"
     f.threatText:SetText(ns.ThreatLabel(state,ns.GetRole()))

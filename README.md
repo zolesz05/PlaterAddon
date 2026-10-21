@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.1.5**
+**Aktuális verzió: 0.1.6**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -59,7 +59,7 @@ Az alapértelmezett a **Moteve**. A `/mp` panelen a kinézetek előnézeti kárt
 
 Automatikus módban a játék által jelzett szerepkörből vagy az elérhető specializációból választ. Ha a kliens nem ad használható tankjelzést, válaszd kézzel a **Tank** módot. A DPS figyelmeztetés küszöbe alapból 85%, és 50–95% között állítható.
 
-Harcon kívül az ellenséges sáv alapszíne piros. Hiányzó vagy védett fenyegetettségi adat esetén az addon ismeretlen állapotot jelezhet; a fenyegetettségi százalékot a kliens szolgáltatja. Ez saját megvalósítású, Threat Plates-jellegű működés.
+Harcon kívül az ellenséges mobok sávja **piros**, a semleges, maguktól nem támadó moboké **sárga**. Kikapcsolt aggro-színezésnél is ez a reakció szerinti alapszín marad. Harc közben az engedélyezett tank/DPS aggrojelzés elsőbbséget kap. Hiányzó vagy védett fenyegetettségi adat esetén az addon ismeretlen állapotot jelezhet; a fenyegetettségi százalékot a kliens szolgáltatja. Ez saját megvalósítású, Threat Plates-jellegű működés.
 
 ## Távolság és debuffok
 
@@ -90,7 +90,7 @@ A célkliens **WoW Forever**, a TOC Interface-értéke **16001**. A beállítás
 
 **A Plater telepítése nem szükséges.** A repository neve PlaterAddon, de az addon neve és telepítési mappája **MotevePlates**. A Questie opcionális: aktív küldetéscél-adataival segítheti a küldetésmobok felismerését. Más névtábla-addonok egyidejű használata megjelenítési ütközést okozhat.
 
-A csomag a jelenleg telepített 0.1.5-ös verzió másolata. Feltöltés előtt a fájlok azonosságát, a Lua-források szintaxisát és a ZIP szerkezetét ellenőriztük. Az élő kliens megjelenítését és harci viselkedését a feltöltéskor nem teszteltük újra.
+A 0.1.6-os verzió a semleges mobok sárga névtáblájának javítását tartalmazza. A helyi tesztek mindhárom skint, az aggro-színezés kapcsolóját, a harci állapotokat és a hiányzó/védett reakcióadatokat is ellenőrzik. A korábbi aggro-, aura-, küldetésjelölő- és távolságtesztek is sikeresek. Az élő kliens megjelenítését és harci viselkedését a feltöltéskor nem teszteltük újra.
 
 ## Hibajelentés
 

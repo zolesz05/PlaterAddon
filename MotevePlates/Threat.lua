@@ -1,6 +1,7 @@
 local _,ns=...
 local states={
     neutral={key="neutral",color={0.72,0.16,0.13},label=""},
+    passive={key="neutral",color={1,0.82,0.05},label=""},
     safe={key="safe",color={0.20,0.75,0.36},label=""},
     held={key="safe",color={0.20,0.75,0.36},label="RAJTAD AZ AGGRO"},
     warning={key="warning",color={1,0.67,0.08},label="MAGAS AGGRO"},
@@ -9,9 +10,12 @@ local states={
     tapped={key="tapped",color={0.45,0.45,0.45},label=""},
 }
 ns.ThreatStates=states
+function ns.ReactionState(reaction)
+    return ns.Number(reaction)==4 and states.passive or states.neutral
+end
 -- Pure classification: receives only readable values, never makes decisions on concealed data.
 function ns.ClassifyThreat(role,d,threshold)
-    if not d.inCombat or d.isPlayer then return d.tapped and states.tapped or states.neutral end
+    if not d.inCombat or d.isPlayer then return d.tapped and states.tapped or ns.ReactionState(d.reaction) end
     local status,percent=ns.Number(d.status),ns.Number(d.percent)
     local owner=ns.Bool(d.tanking)
     if status and status>=2 then owner=true end
@@ -51,6 +55,7 @@ function ns.ReadThreat(unit)
     local engaged=mobCombat and (playerCombat or own==true or targetPlayer==true or (readableStatus and readableStatus>0) or (readablePct and readablePct>0))
     local data={status=readableStatus,percent=readablePct,tanking=own,targetPlayer=targetPlayer,
         hasTarget=ns.Bool(ns.API(UnitExists,unit.."target")),inCombat=not not engaged,
-        tapped=ns.Bool(ns.API(UnitIsTapDenied,unit)),isPlayer=ns.Bool(ns.API(UnitIsPlayer,unit))}
-    return ns.ClassifyThreat(ns.GetRole(),data,ns.db.warningAt),percentage
+        tapped=ns.Bool(ns.API(UnitIsTapDenied,unit)),isPlayer=ns.Bool(ns.API(UnitIsPlayer,unit)),
+        reaction=ns.Number(ns.API(UnitReaction,unit,"player"))}
+    return ns.ClassifyThreat(ns.GetRole(),data,ns.db.warningAt),percentage,ns.ReactionState(data.reaction)
 end

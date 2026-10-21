@@ -1,4 +1,4 @@
-Moteve Plates 0.1.5 – WoW Forever / Interface 16001
+Moteve Plates 0.1.6 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -34,7 +34,10 @@ AGGRO
     Zöld: az ellenfél másra figyel – AGGRO MÁSON.
     Sárga: magas fenyegetettség – MAGAS AGGRO.
     Piros: rád fordult – TÉGED TÁMAD.
-  Harcon kívül az ellenséges sáv alapszíne piros. A más által lefoglalt ellenfél szürke;
+  Harcon kívül az ellenséges mob sávja piros, a semleges (magától nem támadó) mobé sárga.
+  Kikapcsolt aggro-színezésnél is a mob reakciójának megfelelő alapszín látszik.
+  Harc közben az engedélyezett tank/DPS aggrojelzés elsőbbséget kap.
+  A más által lefoglalt ellenfél szürke;
   ha téged támad, az aggrojelzés akkor is elsőbbséget kap.
   A szöveg, a százalék és a sáv színezése egymástól függetlenül kapcsolható.
   A százalék a kliens által szolgáltatott, skálázott fenyegetettségi érték.
