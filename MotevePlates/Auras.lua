@@ -10,13 +10,11 @@ local function InitializeButton(button)
     icon:SetAllPoints();icon:SetTexCoord(0.08,0.92,0.08,0.92)
     local cooldown=CreateFrame("Cooldown",nil,button,"CooldownFrameTemplate")
     cooldown:SetAllPoints();cooldown:EnableMouse(false)
-    if cooldown.SetHideCountdownNumbers then cooldown:SetHideCountdownNumbers(true) end
-    local timer=ns.Font(button,9,true);timer:SetPoint("BOTTOM",0,-10)
+    if cooldown.SetHideCountdownNumbers then cooldown:SetHideCountdownNumbers(false) end
     local count=ns.Font(button,9,true);count:SetPoint("TOPRIGHT",1,0)
     button:SetIcon(icon)
     button:SetDurationCooldown(cooldown)
     button:SetApplicationCount(count)
-    button:SetDurationText(timer)
 end
 local function CreateContainer(f)
     local ok,c=pcall(CreateFrame,"AuraContainer",nil,f,"CustomAuraContainerTemplate")
