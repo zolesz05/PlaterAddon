@@ -1,9 +1,9 @@
 local _,ns=...
 local WHITE=ns.WHITE
 ns.Skins={
-    minimal={label="Minimal",edge={0.65,0.68,0.72},accent={0.94,0.96,1},bg={0.025,0.027,0.03},texture=WHITE},
-    classic={label="Classic",edge={0.57,0.43,0.21},accent={1,0.82,0.38},bg={0.055,0.04,0.025},texture="Interface\\TargetingFrame\\UI-StatusBar"},
-    moteve={label="Moteve",edge={0.43,0.35,0.65},accent={0.5,0.85,1},bg={0.035,0.045,0.10},texture=WHITE},
+    minimal={label="Minimal",edge={0.65,0.68,0.72},accent={0.94,0.96,1},bg={0.025,0.027,0.03},dot={1,1,1},texture=WHITE},
+    classic={label="Classic",edge={0.57,0.43,0.21},accent={1,0.82,0.38},bg={0.055,0.04,0.025},dot={0.72,0.45,1},texture="Interface\\TargetingFrame\\UI-StatusBar"},
+    moteve={label="Moteve",edge={0.43,0.35,0.65},accent={0.5,0.85,1},bg={0.035,0.045,0.10},dot={0.95,0.45,1},texture=WHITE},
 }
 function ns.Font(parent,size,bold)
     local f=parent:CreateFontString(nil,"OVERLAY")
@@ -32,9 +32,22 @@ function ns.CreatePlate(parent)
     f.health:SetFrameLevel(f.chrome:GetFrameLevel()+1)
     f.health.sheen=f.health:CreateTexture(nil,"OVERLAY");f.health.sheen:SetPoint("TOPLEFT");f.health.sheen:SetPoint("TOPRIGHT");f.health.sheen:SetHeight(1)
     f.health.sheen:SetColorTexture(1,1,1,0.14)
-    f.healthText=ns.Font(f.health,11,true);f.healthText:SetPoint("LEFT",5,0)
+    -- DoT marker: a reverse-fill bar ending at the health fill's end, clipped to the health bar (geometry in StylePlate).
+    f.dotClip=CreateFrame("Frame",nil,f.health);f.dotClip:EnableMouse(false)
+    f.dotClip:SetFrameLevel(f.health:GetFrameLevel()+1)
+    if f.dotClip.SetClipsChildren then f.dotClip:SetClipsChildren(true) end
+    f.dot=CreateFrame("StatusBar",nil,f.dotClip);f.dot:EnableMouse(false);f.dot:Hide()
+    f.dot.reverseFill=f.dot.SetReverseFill and pcall(f.dot.SetReverseFill,f.dot,true) or false
+    f.dot:SetStatusBarTexture(WHITE)
+    f.dot.stripe=f.dot:CreateTexture(nil,"ARTWORK",nil,1)
+    f.dot.stripe:SetShown(ns.Bool(ns.API(f.dot.stripe.SetTexture,f.dot.stripe,"Interface\\RaidFrame\\Absorb-Overlay","REPEAT","REPEAT"))==true)
+    if f.dot.stripe.SetHorizTile then f.dot.stripe:SetHorizTile(true) end
+    f.dot.edge=f.dot:CreateTexture(nil,"OVERLAY");f.dot.edge:SetWidth(1)
+    f.healthOverlay=CreateFrame("Frame",nil,f.health);f.healthOverlay:SetAllPoints();f.healthOverlay:EnableMouse(false)
+    f.healthOverlay:SetFrameLevel(f.health:GetFrameLevel()+3)
+    f.healthText=ns.Font(f.healthOverlay,11,true);f.healthText:SetPoint("LEFT",5,0)
     f.healthText:SetJustifyH("LEFT")
-    f.healthPct=ns.Font(f.health,11,true);f.healthPct:SetPoint("RIGHT",-5,0)
+    f.healthPct=ns.Font(f.healthOverlay,11,true);f.healthPct:SetPoint("RIGHT",-5,0)
     f.healthPct:SetJustifyH("RIGHT")
     f.name=ns.Font(f,13,true);f.name:SetPoint("BOTTOMLEFT",f,"TOPLEFT",0,4);f.name:SetJustifyH("LEFT")
     f.questBadge=CreateFrame("Frame",nil,f);f.questBadge:EnableMouse(false)
@@ -79,6 +92,14 @@ function ns.StylePlate(f,skin,options)
     local left=d.showLevel and 25 or 2
     f.health:ClearAllPoints();f.health:SetPoint("TOPLEFT",left,-2);f.health:SetPoint("BOTTOMRIGHT",-2,2)
     f.health:SetStatusBarTexture(s.texture)
+    f.dotClip:ClearAllPoints();f.dotClip:SetPoint("TOPLEFT",f.health,"TOPLEFT");f.dotClip:SetPoint("BOTTOMRIGHT",f.health,"BOTTOMRIGHT")
+    f.dot:SetSize(d.width-left-2,d.height-4)
+    f.dot:ClearAllPoints();f.dot:SetPoint("RIGHT",f.health:GetStatusBarTexture(),"RIGHT")
+    local fill=f.dot:GetStatusBarTexture()
+    f.dot:SetStatusBarColor(s.dot[1],s.dot[2],s.dot[3],0.55)
+    f.dot.stripe:ClearAllPoints();f.dot.stripe:SetAllPoints(fill);f.dot.stripe:SetVertexColor(s.dot[1],s.dot[2],s.dot[3],0.6)
+    f.dot.edge:ClearAllPoints();f.dot.edge:SetPoint("TOPLEFT",fill,"TOPLEFT");f.dot.edge:SetPoint("BOTTOMLEFT",fill,"BOTTOMLEFT")
+    f.dot.edge:SetColorTexture(s.dot[1],s.dot[2],s.dot[3],1)
     f.healthText:SetWidth((d.width-left)*0.57)
     f.healthPct:SetWidth((d.width-left)*0.35)
     f.cast:ClearAllPoints();f.cast:SetPoint("TOPLEFT",f,"BOTTOMLEFT",19,-4)

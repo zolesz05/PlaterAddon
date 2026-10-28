@@ -3,7 +3,7 @@
 ## Notes: Three nameplate skins, role-aware threat colors, health, cast bars and player debuffs. /mp
 ## Notes-huHU: Három névtábla-skin, tank/DPS aggrojelzés, cast sávok és saját debuffok. /mp
 ## Author: Zoltán Gosztonyi
-## Version: 0.1.6
+## Version: 0.2.0
 ## OptionalDeps: Questie
 ## SavedVariables: MotevePlatesDB
 
@@ -12,5 +12,6 @@ Threat.lua
 Skins.lua
 Auras.lua
 Quest.lua
+Dots.lua
 Plates.lua
 Options.lua
