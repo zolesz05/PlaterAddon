@@ -1,4 +1,4 @@
-Moteve Plates 0.2.3 – WoW Forever / Interface 16001
+Moteve Plates 0.2.4 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -61,7 +61,8 @@ DOT-ELŐREJELZÉS
   Forrás: saját castok (UNIT_SPELLCAST_SENT/SUCCEEDED), varázslatleírások (angol és magyar kliensen)
   és UNIT_COMBAT sebzések. Az első tickek után a valódi tickméretet tanulja meg és menti.
   Az addon nem hasonlítja össze és nem számol a védett életerőértékekkel: a maximális életerőt és
-  a becsült sebzést egy StatusBar kapja meg, a kirajzolást a kliens végzi. Aurát és combat logot nem olvas.
+  a becsült sebzést egy StatusBar kapja meg, a kirajzolást a kliens végzi. Combat logot nem olvas; a saját
+  debuffjaidat csak azért nézi, hogy a DoT felkerült-e.
   Követett DoT-ok: Warlock (Corruption, Curse/Bane of Agony, Immolate, Siphon Life), Priest (Shadow Word: Pain,
   Devouring Plague), Druid (Moonfire, Insect Swarm, Rake, Rip), Rogue (Rupture, Garrote), Hunter (Serpent Sting),
   Mage (Fireball és Pyroblast DoT-része), Shaman (Flame Shock), Warrior (Rend).
@@ -70,6 +71,8 @@ DOT-ELŐREJELZÉS
     Cast nélküli DoT-okat (Deep Wounds, Ignite, mérgek) és a mob gyógyulását nem számolja.
     Ha a kliens nem adja meg a kombópontokat, a Rip és a Rupture a legkisebb kombópontszámmal számol.
     Más játékos összetéveszthető, azonos iskolájú sebzésénél a jelölő eltűnik, amíg a tickek újra egyértelműek.
+    A jelölő csak a saját debuff megjelenése vagy az első tick után számol a DoT-tal, így a resistelt,
+    missed vagy immune DoT egy pillanatra sem látszik. Ha a debuff lekerül (pl. dispel), a DoT azonnal kiesik.
     Közvetlenül a cast utáni miss/dodge/parry/resist/immune, illetve két elmaradt tick eldobja a DoT-ot.
     Más nyelvű kliensen a leírást nem olvassa; ott az első tick után jelenik meg a jelölő.
   A tanult tickméreteket a /mp dotreset törli.
@@ -133,6 +136,9 @@ ELLENŐRZÉS
   nincs ikon alatti időszöveg, a cooldown visszaszámlálója nincs elrejtve, a natív gomb cooldownt kap).
   0.2.3: a DoT-szín tesztje: lua tools/test_dot_color.lua (skin szerinti és palettaszín, hibás választás
   és ismeretlen skin, a jelölő három rétegének színe, a mentett érték ellenőrzése betöltéskor és beállításkor).
+  0.2.4: a DoT-teszt (lua tools/test_dots.lua) a megerősítetlen, resistelt DoT rejtését, a saját debuff
+  beolvasását (spellId és név szerint, védett adatnál semmi), a dispel utáni azonnali eldobást és a
+  UNIT_AURA regisztrálását is ellenőrzi.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK
