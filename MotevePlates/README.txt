@@ -1,4 +1,4 @@
-Moteve Plates 0.2.0 – WoW Forever / Interface 16001
+Moteve Plates 0.2.1 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -81,6 +81,9 @@ TOVÁBBI KIJELZÉSEK
   Befejezett Questie-célok jelzése eltűnik; a változásokat küldetésesemények és másodpercenkénti frissítés követi.
   Védett vagy hiányzó adatokból az addon nem találgat küldetéskapcsolatot.
   Életerő és százalék, szint / elit jelzés, kétoldali célpontkiemelés.
+  A szintszám és az elit + jel a mob nehézségi színét kapja a játékos szintjéhez képest
+  (szürke/zöld/sárga/narancs/piros, a kliens GetQuestDifficultyColor színe); „??” (-1) szintű mobnál piros.
+  Ha a kliens nem ad színt, vagy a szint védett / nem olvasható, a skin kiemelőszíne marad.
   Cast és channel sáv idővel, varázslatikonnal; a nem szakítható / ismeretlen állapotú sáv szürke.
   Alapból legfeljebb 8 saját debuff ikonnal és az elérhető időzítési adatokkal.
   A /mp panelen a Debuffok száma 1–12 között állítható; 6 ikon után új sorba tördel, felfelé.
@@ -117,6 +120,8 @@ ELLENŐRZÉS
   0.2.0: a DoT-logika tesztje: lua tools/test_dots.lua (a repository gyökeréből, Lua 5.1+).
   Leírás-feldolgozás angolul és magyarul nyolc osztályra, finisherek, tickpárosítás, eldobás,
   bizonytalanság, eseményregisztráció és a jelölő elrejtése. A magyar minták élő kliens nélkül készültek.
+  0.2.1: a szintszín tesztje: lua tools/test_level_color.lua (nehézségi szín, „??” piros,
+  hiányzó / hibás / rossz alakú kliensválasz és védett szint esetén skinszín mindhárom skinre).
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK

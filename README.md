@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.0**
+**Aktuális verzió: 0.2.1**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -30,7 +30,7 @@ A mappanevet tartsd meg; ne kerüljön még egy almappa a `MotevePlates.toc` és
 ## Funkciók
 
 - Három azonnal váltható névtáblakinézet: **Minimal, Classic, Moteve**.
-- Életerő és százalék, szint / elit jelzés, célpontkiemelés és raid marker.
+- Életerő és százalék, szint / elit jelzés, célpontkiemelés és raid marker. A szintszám a mob nehézségi színét kapja (szürke/zöld/sárga/narancs/piros), „??” mobnál piros.
 - Tank és DPS/healer szerepkör szerint működő aggrojelzés, külön kapcsolható szöveggel, százalékkal és sávszínezéssel. A szöveges jelzés új telepítésnél alapból ki van kapcsolva.
 - Bekapcsolható **DoT-sebzés előrejelzés**: az életerősáv végén jelölő mutatja, mennyit sebeznek még a saját DoT-jaid.
 - Cast és channel sáv varázslatikonnal és idővel.
@@ -113,6 +113,8 @@ A célkliens **WoW Forever**, a TOC Interface-értéke **16001**. A beállítás
 
 A 0.2.0-s verzió új, alapból kikapcsolt DoT-sebzés előrejelzést hoz, és új telepítésnél alapból kikapcsolja a szöveges aggrojelzést. A `tools/test_dots.lua` helyi tesztjei a leírások angol és magyar feldolgozását mind a nyolc osztályra, a kombópontos finishereket, a tickek iskola, ritmus és méret szerinti párosítását, az eldobási és bizonytalansági szabályokat, valamint az események regisztrálását és a jelölő elrejtését ellenőrzik. Az élő kliens megjelenítését és harci viselkedését a feltöltéskor nem teszteltük; a magyar leírások mintái valódi magyar kliens nélkül készültek.
 
+A 0.2.1-es verzióban a névtábla szintszáma és elit `+` jele a mob nehézségi színét kapja a kliens `GetQuestDifficultyColor` segédjéből; „??” (-1) szintű mobnál piros. Ha a kliens nem ad színt, vagy a szint védett, a skin kiemelőszíne marad. A `tools/test_level_color.lua` ezt helyi stubokkal ellenőrzi; hogy a WoW Forever kliens valóban ad-e nehézségi színt, élő kliensen még nem teszteltük.
+
 ## Hibajelentés
 
 Hibát az [Issues oldalon](https://github.com/zolesz05/PlaterAddon/issues) jelezhetsz. Add meg a kliens és az addon verzióját, a kiválasztott skint és szerepkört, valamint a reprodukálás lépéseit. A `/mp errors` és `/mp auras` kimenete, illetve egy képernyőkép segíthet.
@@ -127,10 +129,11 @@ A legfrissebb telepíthető csomag frissítése a repository gyökeréből:
 python tools/package_addon.py
 ```
 
-A DoT-logika tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
+A DoT-logika és a szintszín tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
 
 ```sh
 lua tools/test_dots.lua
+lua tools/test_level_color.lua
 ```
 
 A csomagoló ellenőrzi a TOC bejegyzéseit és a ZIP tartalmát, lecseréli a `downloads/MotevePlates.zip` fájlt, és eltávolítja a korábbi verziószámos addoncsomagokat ebből a mappából. A forrást, a ZIP-et és a README-t együtt kell feltölteni.
