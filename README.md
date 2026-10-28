@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.2**
+**Aktuális verzió: 0.2.3**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -68,6 +68,8 @@ Harcon kívül az ellenséges mobok sávja **piros**, a semleges, maguktól nem 
 
 Alapból kikapcsolva; a `/mp` panelen a **DoT-sebzés előrejelzése** kapcsolóval kapcsolható be. Bekapcsolva minden ellenséges névtábla életerősávján egy csíkos jelölő takarja azt a részt, amennyit a saját DoT-jaid még sebezni fognak. Ha az életerősáv vége a jelölőn belül van, a mob újabb varázslat nélkül is meghal. A jelölő a sáv bal szélénél levágódik, ha a DoT-ok többet sebeznének a hátralévő életerőnél.
 
+A jelölő színe a kapcsoló melletti **DoT-szín** négyzetekkel választható. Az alapértelmezett **Skin szerint** (az „S” jelű négyzet) a skin saját színét használja: Minimal fehér, Classic lila, Moteve rózsaszín. Emellett fehér, lila, rózsaszín, zöld, sárga, türkiz és piros választható; a négyzet fölé víve az egeret megjelenik a szín neve. A zöld, a sárga és a piros világosabb az aggro-színezés árnyalatainál, így a jelölő a színezett sávon is elüt. A választás mentődik, azonnal látszik az élő névtáblákon és a skin-előnézeteken, az **Alapbeállítások** gomb pedig visszaállítja a Skin szerinti színt. Az átlátszóság nem állítható.
+
 Az addon a saját varázslataidból, a varázslatleírásokból (angol és magyar kliensen) és a `UNIT_COMBAT` sebzésekből becsül; az első tickek után a valódi tickméretet tanulja meg és menti. Az életerőt nem hasonlítja össze és nem számol vele: a maximális életerőt és a becsült sebzést egy StatusBar kapja meg, a kirajzolást a kliens végzi. Követett DoT-ok: Warlock (Corruption, Curse/Bane of Agony, Immolate, Siphon Life), Priest (Shadow Word: Pain, Devouring Plague), Druid (Moonfire, Insect Swarm, Rake, Rip), Rogue (Rupture, Garrote), Hunter (Serpent Sting), Mage (Fireball és Pyroblast DoT-része), Shaman (Flame Shock), Warrior (Rend).
 
 Korlátok:
@@ -117,6 +119,8 @@ A 0.2.1-es verzióban a névtábla szintszáma és elit `+` jele a mob nehézsé
 
 A 0.2.2-es verzióban a saját debuff ikonokon a hátralévő idő csak egyszer, az ikonon belüli visszaszámlálóként látszik; az ikon alatti kis időszöveg kikerült, a natív és a tartalék aura-megjelenítőn egyaránt. A `/mp` panel előnézete is futó cooldownt mutat. A belső szám a játék cooldown-szám beállításától függ. A `tools/test_aura_timer.lua` ezt helyi stubokkal ellenőrzi; élő kliensen még nem teszteltük.
 
+A 0.2.3-as verzióban a DoT-előrejelzés jelölőjének színe a `/mp` panelen választható: Skin szerint (alapérték, a korábbi színek) vagy hét előre megadott szín közül. A `tools/test_dot_color.lua` helyi stubokkal ellenőrzi a színfeloldást, a jelölő színezését és a mentett érték ellenőrzését; élő kliensen még nem teszteltük.
+
 ## Hibajelentés
 
 Hibát az [Issues oldalon](https://github.com/zolesz05/PlaterAddon/issues) jelezhetsz. Add meg a kliens és az addon verzióját, a kiválasztott skint és szerepkört, valamint a reprodukálás lépéseit. A `/mp errors` és `/mp auras` kimenete, illetve egy képernyőkép segíthet.
@@ -131,12 +135,13 @@ A legfrissebb telepíthető csomag frissítése a repository gyökeréből:
 python tools/package_addon.py
 ```
 
-A DoT-logika, a szintszín és a debuff-idő tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
+A DoT-logika, a szintszín, a debuff-idő és a DoT-szín tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
 
 ```sh
 lua tools/test_dots.lua
 lua tools/test_level_color.lua
 lua tools/test_aura_timer.lua
+lua tools/test_dot_color.lua
 ```
 
 A csomagoló ellenőrzi a TOC bejegyzéseit és a ZIP tartalmát, lecseréli a `downloads/MotevePlates.zip` fájlt, és eltávolítja a korábbi verziószámos addoncsomagokat ebből a mappából. A forrást, a ZIP-et és a README-t együtt kell feltölteni.

@@ -46,7 +46,7 @@ function ns.Print(text) print("|cffa88bffMoteve Plates|r: "..text) end
 ns.defaults={enabled=true,skin="moteve",role="auto",scale=1,width=190,height=17,offset=0,distance=40,
     showAggro=false,colorThreat=true,showThreatPercent=true,warningAt=85,
     healthText=true,healthPercent=true,showLevel=true,showCast=true,showAuras=true,maxAuras=8,dimOthers=true,showQuest=true,
-    showDotPrediction=false}
+    showDotPrediction=false,dotColor="skin"}
 local ranges={scale={0.65,1.5},width={140,260},height={12,26},offset={-30,40},warningAt={50,95},distance={5,100},maxAuras={1,12}}
 local skins={minimal=true,classic=true,moteve=true}
 local roles={auto=true,tank=true,dps=true}
@@ -60,6 +60,10 @@ local function Validate(key,value)
         return math.max(ranges[key][1],math.min(ranges[key][2],number))
     elseif key=="skin" then return skins[value] and value or nil
     elseif key=="role" then return roles[value] and value or nil
+    -- ns.DotColors comes from Skins.lua, which loads after this file; Validate only runs from ADDON_LOADED on.
+    elseif key=="dotColor" then
+        if value=="skin" or (type(value)=="string" and ns.DotColors and ns.DotColors[value]) then return value end
+        return nil
     elseif type(value)=="boolean" then return value end
 end
 -- Use the native visibility distance; never fabricate nameplates outside engine range.

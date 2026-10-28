@@ -62,6 +62,25 @@ for i,definition in ipairs(definitions) do
     cb:SetScript("OnClick",function(self) ns.SetOption(key,self:GetChecked() and true or false) end)
     checks[key]=cb
 end
+Text(body,320,-423,"DoT-szín",12)
+local dotButtons={}
+local dotNames={skin="Skin szerint",white="Fehér",purple="Lila",pink="Rózsaszín",green="Zöld",yellow="Sárga",cyan="Türkiz",red="Piros"}
+local dotKeys={"skin"};for _,key in ipairs(ns.DotColorOrder) do dotKeys[#dotKeys+1]=key end
+for i,key in ipairs(dotKeys) do
+    local choice=key
+    local b=CreateFrame("Button",nil,body,"BackdropTemplate")
+    b:SetSize(18,18);b:SetPoint("TOPLEFT",380+(i-1)*22,-421)
+    b:SetBackdrop({bgFile=ns.WHITE,edgeFile=ns.WHITE,edgeSize=2})
+    local r,g,bl=ns.DotColor(nil,choice);b:SetBackdropColor(r,g,bl,1)
+    if choice=="skin" then b.text=ns.Font(b,10,true);b.text:SetPoint("CENTER");b.text:SetText("S");b.text:SetTextColor(0.05,0.05,0.08) end
+    b:SetScript("OnClick",function() ns.SetOption("dotColor",choice) end)
+    b:SetScript("OnEnter",function(self)
+        if not GameTooltip then return end
+        GameTooltip:SetOwner(self,"ANCHOR_TOP");GameTooltip:SetText(dotNames[choice]);GameTooltip:Show()
+    end)
+    b:SetScript("OnLeave",function() if GameTooltip then GameTooltip:Hide() end end)
+    dotButtons[choice]=b
+end
 Text(body,20,-458,"Zöld: rendben  •  Sárga: bizonytalan  •  Piros: veszély  •  Szürke / ?: nincs biztos adat",12,{0.75,0.79,0.89})
 Text(body,20,-476,"DPS/heal: rád kerülő aggro veszélyes. Tank: az elvesztett aggro veszélyes.",12,{0.75,0.79,0.89})
 local values={}
@@ -136,6 +155,11 @@ function ns.UpdateOptions()
     for key,b in pairs(roleButtons) do
         local c=ns.db.role==key and {0.66,0.55,1} or {0.35,0.37,0.43}
         b:SetBackdropBorderColor(c[1],c[2],c[3],1)
+    end
+    local r,g,b=ns.DotColor(ns.db.skin,"skin");dotButtons.skin:SetBackdropColor(r,g,b,1)
+    for key,button in pairs(dotButtons) do
+        local c=ns.db.dotColor==key and {0.66,0.55,1} or {0.35,0.37,0.43}
+        button:SetBackdropBorderColor(c[1],c[2],c[3],1)
     end
     for key,v in pairs(values) do v.text:SetText(v.format(ns.db[key])) end
     distanceStatus:SetText(ns.DistanceStatus())

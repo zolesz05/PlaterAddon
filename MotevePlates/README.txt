@@ -1,4 +1,4 @@
-Moteve Plates 0.2.2 – WoW Forever / Interface 16001
+Moteve Plates 0.2.3 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -55,6 +55,9 @@ DOT-ELŐREJELZÉS
   Minden ellenséges névtábla életerősávján csíkos jelölő takarja azt a részt, amennyit a saját
   DoT-jaid még sebezni fognak. Ha az életerősáv vége a jelölőn belül van, a mob újabb cast nélkül is meghal.
   A jelölő a sáv bal szélénél levágódik, ha a DoT-ok többet sebeznének a hátralévő életerőnél.
+  A jelölő színe a kapcsoló melletti "DoT-szín" négyzetekkel választható: "Skin szerint" (alapérték;
+  Minimal fehér, Classic lila, Moteve rózsaszín), fehér, lila, rózsaszín, zöld, sárga, türkiz vagy piros.
+  A választás mentődik, azonnal látszik a névtáblákon és az előnézeten; az Alapbeállítások visszaállítja.
   Forrás: saját castok (UNIT_SPELLCAST_SENT/SUCCEEDED), varázslatleírások (angol és magyar kliensen)
   és UNIT_COMBAT sebzések. Az első tickek után a valódi tickméretet tanulja meg és menti.
   Az addon nem hasonlítja össze és nem számol a védett életerőértékekkel: a maximális életerőt és
@@ -128,6 +131,8 @@ ELLENŐRZÉS
   hiányzó / hibás / rossz alakú kliensválasz és védett szint esetén skinszín mindhárom skinre).
   0.2.2: a debuff-idő tesztje: lua tools/test_aura_timer.lua (a tartalék és a natív ikonokon
   nincs ikon alatti időszöveg, a cooldown visszaszámlálója nincs elrejtve, a natív gomb cooldownt kap).
+  0.2.3: a DoT-szín tesztje: lua tools/test_dot_color.lua (skin szerinti és palettaszín, hibás választás
+  és ismeretlen skin, a jelölő három rétegének színe, a mentett érték ellenőrzése betöltéskor és beállításkor).
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK

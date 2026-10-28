@@ -5,6 +5,17 @@ ns.Skins={
     classic={label="Classic",edge={0.57,0.43,0.21},accent={1,0.82,0.38},bg={0.055,0.04,0.025},dot={0.72,0.45,1},texture="Interface\\TargetingFrame\\UI-StatusBar"},
     moteve={label="Moteve",edge={0.43,0.35,0.65},accent={0.5,0.85,1},bg={0.035,0.045,0.10},dot={0.95,0.45,1},texture=WHITE},
 }
+-- DoT-marker palette; ns.DotColorOrder sets the panel order. "skin" (the default) uses the skin's own dot colour.
+ns.DotColors={
+    white={1,1,1},purple={0.72,0.45,1},pink={0.95,0.45,1},green={0.45,1,0.55},
+    yellow={1,0.95,0.3},cyan={0.3,0.9,1},red={1,0.3,0.3},
+}
+ns.DotColorOrder={"white","purple","pink","green","yellow","cyan","red"}
+function ns.DotColor(skin,choice)
+    local c=type(choice)=="string" and ns.DotColors[choice]
+    if not c then c=(ns.Skins[skin] or ns.Skins.moteve).dot end
+    return c[1],c[2],c[3]
+end
 -- Level number colour: the client's difficulty colour, red for skull (-1) mobs, otherwise the skin accent.
 function ns.LevelColor(level,skin)
     local s=ns.Skins[skin] or ns.Skins.moteve
@@ -110,10 +121,11 @@ function ns.StylePlate(f,skin,options)
     f.dot:SetSize(d.width-left-2,d.height-4)
     f.dot:ClearAllPoints();f.dot:SetPoint("RIGHT",f.health:GetStatusBarTexture(),"RIGHT")
     local fill=f.dot:GetStatusBarTexture()
-    f.dot:SetStatusBarColor(s.dot[1],s.dot[2],s.dot[3],0.55)
-    f.dot.stripe:ClearAllPoints();f.dot.stripe:SetAllPoints(fill);f.dot.stripe:SetVertexColor(s.dot[1],s.dot[2],s.dot[3],0.6)
+    local dr,dg,db=ns.DotColor(skin,d.dotColor)
+    f.dot:SetStatusBarColor(dr,dg,db,0.55)
+    f.dot.stripe:ClearAllPoints();f.dot.stripe:SetAllPoints(fill);f.dot.stripe:SetVertexColor(dr,dg,db,0.6)
     f.dot.edge:ClearAllPoints();f.dot.edge:SetPoint("TOPLEFT",fill,"TOPLEFT");f.dot.edge:SetPoint("BOTTOMLEFT",fill,"BOTTOMLEFT")
-    f.dot.edge:SetColorTexture(s.dot[1],s.dot[2],s.dot[3],1)
+    f.dot.edge:SetColorTexture(dr,dg,db,1)
     f.healthText:SetWidth((d.width-left)*0.57)
     f.healthPct:SetWidth((d.width-left)*0.35)
     f.cast:ClearAllPoints();f.cast:SetPoint("TOPLEFT",f,"BOTTOMLEFT",19,-4)
