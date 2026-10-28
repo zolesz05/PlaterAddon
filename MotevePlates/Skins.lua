@@ -5,6 +5,20 @@ ns.Skins={
     classic={label="Classic",edge={0.57,0.43,0.21},accent={1,0.82,0.38},bg={0.055,0.04,0.025},dot={0.72,0.45,1},texture="Interface\\TargetingFrame\\UI-StatusBar"},
     moteve={label="Moteve",edge={0.43,0.35,0.65},accent={0.5,0.85,1},bg={0.035,0.045,0.10},dot={0.95,0.45,1},texture=WHITE},
 }
+-- Level number colour: the client's difficulty colour, red for skull (-1) mobs, otherwise the skin accent.
+function ns.LevelColor(level,skin)
+    local s=ns.Skins[skin] or ns.Skins.moteve
+    level=ns.Number(level)
+    if level==-1 then return 1,0.1,0.1 end
+    if level and level>0 then
+        local c=ns.API(GetQuestDifficultyColor,level)
+        if not ns.Secret(c) and type(c)=="table" then
+            local r,g,b=ns.Number(c.r),ns.Number(c.g),ns.Number(c.b)
+            if r and g and b then return r,g,b end
+        end
+    end
+    return s.accent[1],s.accent[2],s.accent[3]
+end
 function ns.Font(parent,size,bold)
     local f=parent:CreateFontString(nil,"OVERLAY")
     f:SetFont(ns.MEDIA.."Fonts\\"..(bold and "Barlow-SemiBold.ttf" or "Barlow-Regular.ttf"),size,"")

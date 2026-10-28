@@ -122,6 +122,7 @@ local function Metadata(f)
     local classification=ns.API(UnitClassification,f.unit)
     local elite=not ns.Secret(classification) and (classification=="elite" or classification=="rareelite" or classification=="worldboss")
     f.level:SetText(level and level>0 and (tostring(level)..(elite and "+" or "")) or "??")
+    f.level:SetTextColor(ns.LevelColor(level,f.skin))
     local raid=ns.Number(ns.API(GetRaidTargetIndex,f.unit))
     if raid and raid>=1 and raid<=8 then
         if SetRaidTargetIconTexture then SetRaidTargetIconTexture(f.raid,raid)
