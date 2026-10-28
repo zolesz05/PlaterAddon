@@ -113,7 +113,7 @@ local function Demo(f,skin)
     f.cast:SetShown(d.showCast);f.cast.icon:SetShown(d.showCast)
     local icons={"Ability_Warrior_Rend","Spell_Shadow_ShadowWordPain","Spell_Fire_Fireball"}
     for i,a in ipairs(f.auras) do
-        a.icon:SetTexture("Interface\\Icons\\"..icons[(i-1)%3+1]);a.cooldown:Hide();a.count:SetText("");a.timer:SetText(tostring(i*3+2));a:SetShown(d.showAuras and i<=math.min(3,d.maxAuras))
+        a.icon:SetTexture("Interface\\Icons\\"..icons[(i-1)%3+1]);a.cooldown:SetCooldown(GetTime()-2,30+i*10);a.cooldown:Show();a.count:SetText("");a:SetShown(d.showAuras and i<=math.min(3,d.maxAuras))
     end
     local role=ns.GetRole()
     local state=ns.ClassifyThreat(role,{inCombat=true,status=3,tanking=true,percent=100},d.warningAt)

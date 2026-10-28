@@ -27,7 +27,7 @@ function ns.Detach(unit)
     ns.StopNativeAuras(f)
     f.questBadge:Hide();f.questRelevant=nil;f.questNextCheck=nil
     f.unit=nil;f.cast:Hide();f.cast.icon:Hide();f.raid:Hide();f.dot:Hide()
-    for _,a in ipairs(f.auras) do a:Hide();a.expiration=nil end
+    for _,a in ipairs(f.auras) do a:Hide() end
     f:Hide();ns.active[unit]=nil
 end
 local function Compact(n)
@@ -96,7 +96,7 @@ local function AuraData(unit,i)
     return {name=name,icon=icon,applications=count,duration=duration,expirationTime=expiration}
 end
 function ns.UpdateAuras(f)
-    for _,a in ipairs(f.auras) do a:Hide();a.expiration=nil end
+    for _,a in ipairs(f.auras) do a:Hide() end
     if ns.UseNativeAuras(f) then return end
     if not ns.db.showAuras then return end
     for i,a in ipairs(f.auras) do
@@ -107,9 +107,8 @@ function ns.UpdateAuras(f)
         local count=ns.Number(data.applications)
         a.count:SetText(count and count>1 and tostring(count) or "")
         local duration,expiration=ns.Number(data.duration),ns.Number(data.expirationTime)
-        a.cooldown:Hide();a.timer:SetText("")
+        a.cooldown:Hide()
         if duration and expiration and duration>0 and expiration>0 then
-            a.expiration=expiration
             a.cooldown:SetCooldown(expiration-duration,duration);a.cooldown:Show()
         end
         a:Show()
@@ -155,9 +154,6 @@ function ns.UpdatePlate(f,auras)
     else f.threatPct:SetText("") end
     ns.PlaceThreatText(f,visible)
     if auras then ns.UpdateAuras(f) end
-    for _,a in ipairs(f.auras) do
-        if a.expiration then a.timer:SetText(tostring(math.max(0,math.ceil(a.expiration-GetTime())))) end
-    end
 end
 function ns.Attach(unit)
     if not ns.db or not ns.db.enabled or ns.Secret(unit) or type(unit)~="string" then return end
