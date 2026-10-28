@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.1**
+**Aktuális verzió: 0.2.2**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -34,7 +34,7 @@ A mappanevet tartsd meg; ne kerüljön még egy almappa a `MotevePlates.toc` és
 - Tank és DPS/healer szerepkör szerint működő aggrojelzés, külön kapcsolható szöveggel, százalékkal és sávszínezéssel. A szöveges jelzés új telepítésnél alapból ki van kapcsolva.
 - Bekapcsolható **DoT-sebzés előrejelzés**: az életerősáv végén jelölő mutatja, mennyit sebeznek még a saját DoT-jaid.
 - Cast és channel sáv varázslatikonnal és idővel.
-- Saját debuffok és DoT-ok ikonnal, elérhető időzítéssel és stackjelzéssel.
+- Saját debuffok és DoT-ok ikonnal, az ikonon belüli visszaszámlálóval és stackjelzéssel.
 - Alapból legfeljebb **8 debuff**; a darabszám **1–12 között állítható**, hat ikon után új sorral.
 - Küldetésmobok előtt apró, tompa arany **!**, nagy felirat vagy külön háttér nélkül.
 - Állítható névtábla-távolság, méret, szélesség, sávmagasság és függőleges eltolás.
@@ -85,7 +85,7 @@ A követés logikája a [DoesItDie](https://github.com/swirllyman/DoesItDie) add
 
 A névtáblák kívánt megjelenítési távolsága **5–100 yard** között kérhető. A panel a kliensből visszaolvasott értéket is megmutatja. A játék vagy a szerver alacsonyabb korlátot szabhat; az addon ezen nem tud túllépni. Harc közben a módosítás a harc végéig vár.
 
-A debuffokhoz a Forever kliens natív aura-megjelenítőjét használja, ha az elérhető. A hátralévő idő és stackek megjelenése a kliens által biztosított adatoktól függ. A debuffok száma és a saját aurák megjelenítése a `/mp` panelen állítható.
+A debuffokhoz a Forever kliens natív aura-megjelenítőjét használja, ha az elérhető. A hátralévő idő egyetlen számként, az ikonon belül látszik (a cooldown saját visszaszámlálója), az ikon alatt nincs külön időszöveg. Ez a szám a játék cooldown-szám beállításától függ: ha a „cooldown számok mutatása” ki van kapcsolva, az ikonon nem látszik idő. A hátralévő idő és a stackek megjelenése a kliens által biztosított adatoktól is függ. A debuffok száma és a saját aurák megjelenítése a `/mp` panelen állítható.
 
 ## Parancsok
 
@@ -115,6 +115,8 @@ A 0.2.0-s verzió új, alapból kikapcsolt DoT-sebzés előrejelzést hoz, és �
 
 A 0.2.1-es verzióban a névtábla szintszáma és elit `+` jele a mob nehézségi színét kapja a kliens `GetQuestDifficultyColor` segédjéből; „??” (-1) szintű mobnál piros. Ha a kliens nem ad színt, vagy a szint védett, a skin kiemelőszíne marad. A `tools/test_level_color.lua` ezt helyi stubokkal ellenőrzi; hogy a WoW Forever kliens valóban ad-e nehézségi színt, élő kliensen még nem teszteltük.
 
+A 0.2.2-es verzióban a saját debuff ikonokon a hátralévő idő csak egyszer, az ikonon belüli visszaszámlálóként látszik; az ikon alatti kis időszöveg kikerült, a natív és a tartalék aura-megjelenítőn egyaránt. A `/mp` panel előnézete is futó cooldownt mutat. A belső szám a játék cooldown-szám beállításától függ. A `tools/test_aura_timer.lua` ezt helyi stubokkal ellenőrzi; élő kliensen még nem teszteltük.
+
 ## Hibajelentés
 
 Hibát az [Issues oldalon](https://github.com/zolesz05/PlaterAddon/issues) jelezhetsz. Add meg a kliens és az addon verzióját, a kiválasztott skint és szerepkört, valamint a reprodukálás lépéseit. A `/mp errors` és `/mp auras` kimenete, illetve egy képernyőkép segíthet.
@@ -129,11 +131,12 @@ A legfrissebb telepíthető csomag frissítése a repository gyökeréből:
 python tools/package_addon.py
 ```
 
-A DoT-logika és a szintszín tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
+A DoT-logika, a szintszín és a debuff-idő tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
 
 ```sh
 lua tools/test_dots.lua
 lua tools/test_level_color.lua
+lua tools/test_aura_timer.lua
 ```
 
 A csomagoló ellenőrzi a TOC bejegyzéseit és a ZIP tartalmát, lecseréli a `downloads/MotevePlates.zip` fájlt, és eltávolítja a korábbi verziószámos addoncsomagokat ebből a mappából. A forrást, a ZIP-et és a README-t együtt kell feltölteni.

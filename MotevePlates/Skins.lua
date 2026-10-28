@@ -87,7 +87,7 @@ function ns.CreatePlate(parent)
         local a=CreateFrame("Frame",nil,f,"BackdropTemplate");a:SetSize(19,19);a:EnableMouse(false)
         a.icon=a:CreateTexture(nil,"ARTWORK");a.icon:SetAllPoints();a.icon:SetTexCoord(0.08,0.92,0.08,0.92)
         a.cooldown=CreateFrame("Cooldown",nil,a,"CooldownFrameTemplate");a.cooldown:SetAllPoints();a.cooldown:EnableMouse(false)
-        a.timer=ns.Font(a,9,true);a.timer:SetPoint("BOTTOM",0,-10)
+        if a.cooldown.SetHideCountdownNumbers then a.cooldown:SetHideCountdownNumbers(false) end
         a.count=ns.Font(a,9,true);a.count:SetPoint("TOPRIGHT",1,0)
         a:SetPoint("BOTTOMLEFT",f,"TOPLEFT",((i-1)%6)*23,30+math.floor((i-1)/6)*31);a:Hide()
         f.auras[i]=a
