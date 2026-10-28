@@ -20,12 +20,13 @@ local function NativeVisuals(f,hide)
     return pcall(native.SetAlpha,native,0)
 end
 function ns.Detach(unit)
+    ns.Dots.Clear(unit)
     local f=ns.active[unit]
     if not f then return end
     NativeVisuals(f,false)
     ns.StopNativeAuras(f)
     f.questBadge:Hide();f.questRelevant=nil;f.questNextCheck=nil
-    f.unit=nil;f.cast:Hide();f.cast.icon:Hide();f.raid:Hide()
+    f.unit=nil;f.cast:Hide();f.cast.icon:Hide();f.raid:Hide();f.dot:Hide()
     for _,a in ipairs(f.auras) do a:Hide();a.expiration=nil end
     f:Hide();ns.active[unit]=nil
 end
@@ -137,7 +138,7 @@ function ns.UpdatePlate(f,auras)
     if not ns.db.enabled or ns.Bool(ns.API(UnitExists,unit))~=true or ns.Bool(ns.API(UnitCanAttack,"player",unit))~=true or IsForbidden(f.base) then ns.Detach(unit);return end
     if not NativeVisuals(f,true) then f:Hide();return end
     if f.revision~=revision then ns.StylePlate(f,ns.db.skin);f.revision=revision end
-    f:Show();Health(f);Metadata(f);Cast(f);ns.UpdateQuestMarker(f)
+    f:Show();Health(f);ns.UpdateDotMarker(f);Metadata(f);Cast(f);ns.UpdateQuestMarker(f)
     local target=ns.Bool(ns.API(UnitIsUnit,unit,"target"))==true
     ns.TargetStyle(f,target,ns.Bool(ns.API(UnitExists,"target"))==true)
     local state,percent,baseState=ns.ReadThreat(unit)
@@ -190,6 +191,7 @@ function ns.ApplyOptions()
         f.questNextCheck=nil
         f:ClearAllPoints();f:SetPoint("CENTER",f.base,"CENTER",0,ns.db.offset)
     end
+    ns.Dots.Sync()
     ns.RefreshAll()
 end
 ns:On("NAME_PLATE_UNIT_ADDED",function(_,unit) ns.Attach(unit) end)

@@ -1,4 +1,4 @@
-Moteve Plates 0.1.6 – WoW Forever / Interface 16001
+Moteve Plates 0.2.0 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -40,12 +40,38 @@ AGGRO
   A más által lefoglalt ellenfél szürke;
   ha téged támad, az aggrojelzés akkor is elsőbbséget kap.
   A szöveg, a százalék és a sáv színezése egymástól függetlenül kapcsolható.
+  A szöveges jelzés (TÉGED TÁMAD, MAGAS AGGRO stb.) új telepítésnél alapból ki van kapcsolva;
+  az "Aggro szöveges jelzése" kapcsolóval kapcsolható be. Meglévő telepítésnél a mentett érték marad.
+  Az Alapbeállítások gomb ezt is kikapcsolja, a többi beállítással együtt.
   A százalék a kliens által szolgáltatott, skálázott fenyegetettségi érték.
   A DPS figyelmeztetési küszöb alapértéke 85%; 50–95% között állítható.
   Automatikus módban a játék szerepköre, majd az elérhető specializáció alapján választ.
   Ha nincs használható tankjelzés, DPS/healer módot használ. Klasszikus talenteknél válaszd kézzel a Tank módot.
   Ha a kliens elrejti a fenyegetettségi adatokat és a célpontból sem állapítható meg az állapot,
   az addon AGGRO: ? jelzést mutat. A védett adatokból nem következtet találgatással biztonságos állapotra.
+
+DOT-ELŐREJELZÉS
+  Alapból kikapcsolva; a /mp panelen a "DoT-sebzés előrejelzése" kapcsolóval kapcsolható be.
+  Minden ellenséges névtábla életerősávján csíkos jelölő takarja azt a részt, amennyit a saját
+  DoT-jaid még sebezni fognak. Ha az életerősáv vége a jelölőn belül van, a mob újabb cast nélkül is meghal.
+  A jelölő a sáv bal szélénél levágódik, ha a DoT-ok többet sebeznének a hátralévő életerőnél.
+  Forrás: saját castok (UNIT_SPELLCAST_SENT/SUCCEEDED), varázslatleírások (angol és magyar kliensen)
+  és UNIT_COMBAT sebzések. Az első tickek után a valódi tickméretet tanulja meg és menti.
+  Az addon nem hasonlítja össze és nem számol a védett életerőértékekkel: a maximális életerőt és
+  a becsült sebzést egy StatusBar kapja meg, a kirajzolást a kliens végzi. Aurát és combat logot nem olvas.
+  Követett DoT-ok: Warlock (Corruption, Curse/Bane of Agony, Immolate, Siphon Life), Priest (Shadow Word: Pain,
+  Devouring Plague), Druid (Moonfire, Insect Swarm, Rake, Rip), Rogue (Rupture, Garrote), Hunter (Serpent Sting),
+  Mage (Fireball és Pyroblast DoT-része), Shaman (Flame Shock), Warrior (Rend).
+  Korlátok:
+    Csak a saját DoT-jaidat követi, és csak a kijelölt célpontra küldött castokat (mouseover/focus nem).
+    Cast nélküli DoT-okat (Deep Wounds, Ignite, mérgek) és a mob gyógyulását nem számolja.
+    Ha a kliens nem adja meg a kombópontokat, a Rip és a Rupture a legkisebb kombópontszámmal számol.
+    Más játékos összetéveszthető, azonos iskolájú sebzésénél a jelölő eltűnik, amíg a tickek újra egyértelműek.
+    Közvetlenül a cast utáni miss/dodge/parry/resist/immune, illetve két elmaradt tick eldobja a DoT-ot.
+    Más nyelvű kliensen a leírást nem olvassa; ott az első tick után jelenik meg a jelölő.
+  A tanult tickméreteket a /mp dotreset törli.
+  A követés logikája a DoesItDie addon (https://github.com/swirllyman/DoesItDie, MIT-licenc,
+  Copyright (c) 2026 Joe Greive) megközelítésén alapul; licence: LICENSE-DoesItDie.txt.
 
 TOVÁBBI KIJELZÉSEK
   Küldetésmobok: apró, tompa arany ! a név előtt, háttér és felirat nélkül; a név eredeti színével.
@@ -79,6 +105,7 @@ PARANCSOK
   /mp on /mp off              addon be / ki
   /mp errors                  az aktuális belépés alatt rögzített hibák
   /mp auras                   saját debuffok kapcsolója és az aktív névtáblák aura-megjelenítője
+  /mp dotreset                a DoT-előrejelzés tanult tickméreteinek törlése
 
 ELLENŐRZÉS
   Helyi Lua/WoW-szimulációval tesztelve: a szerepkörök és aggroállapotok, három skin,
@@ -87,6 +114,9 @@ ELLENŐRZÉS
   hiányzó API-k, beállítások javítása és parancsok. A beállítópanel geometriáját külön átnéztem.
   0.1.2: a védett aurákhoz tartozó natív megjelenítő kötései, saját debuff-szűrője,
   ki-/bekapcsolása, névtábla-újrafelhasználása és leválasztása helyi szimulációval ellenőrizve.
+  0.2.0: a DoT-logika tesztje: lua tools/test_dots.lua (a repository gyökeréből, Lua 5.1+).
+  Leírás-feldolgozás angolul és magyarul nyolc osztályra, finisherek, tickpárosítás, eldobás,
+  bizonytalanság, eseményregisztráció és a jelölő elrejtése. A magyar minták élő kliens nélkül készültek.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK

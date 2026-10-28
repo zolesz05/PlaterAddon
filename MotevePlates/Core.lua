@@ -44,8 +44,9 @@ end
 eventFrame:SetScript("OnEvent",function(_,event,...) ns:Fire(event,...) end)
 function ns.Print(text) print("|cffa88bffMoteve Plates|r: "..text) end
 ns.defaults={enabled=true,skin="moteve",role="auto",scale=1,width=190,height=17,offset=0,distance=40,
-    showAggro=true,colorThreat=true,showThreatPercent=true,warningAt=85,
-    healthText=true,healthPercent=true,showLevel=true,showCast=true,showAuras=true,maxAuras=8,dimOthers=true,showQuest=true}
+    showAggro=false,colorThreat=true,showThreatPercent=true,warningAt=85,
+    healthText=true,healthPercent=true,showLevel=true,showCast=true,showAuras=true,maxAuras=8,dimOthers=true,showQuest=true,
+    showDotPrediction=false}
 local ranges={scale={0.65,1.5},width={140,260},height={12,26},offset={-30,40},warningAt={50,95},distance={5,100},maxAuras={1,12}}
 local skins={minimal=true,classic=true,moteve=true}
 local roles={auto=true,tank=true,dps=true}
@@ -154,6 +155,9 @@ SlashCmdList.MOTEVEPLATES=function(input)
             ns.Print(unit..": "..(f.auraContainer and "Blizzard AuraContainer" or "régi aura API"))
         end
         if count==0 then ns.Print("Nincs aktív ellenséges névtábla. Jelölj ki egy közeli ellenfelet.") end
+    elseif cmd=="dotreset" then
+        ns.Dots.ResetLearned()
+        ns.Print("A tanult DoT-sebzésértékek törölve.")
     elseif cmd=="errors" then
         if #ns.errors==0 then ns.Print("Nincs rögzített hiba.") end
         for _,msg in ipairs(ns.errors) do ns.Print(msg) end
