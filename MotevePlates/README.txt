@@ -1,4 +1,4 @@
-Moteve Plates 0.2.1 – WoW Forever / Interface 16001
+Moteve Plates 0.2.2 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -88,9 +88,13 @@ TOVÁBBI KIJELZÉSEK
   Alapból legfeljebb 8 saját debuff ikonnal és az elérhető időzítési adatokkal.
   A /mp panelen a Debuffok száma 1–12 között állítható; 6 ikon után új sorba tördel, felfelé.
   Forever kliensen a Blizzard AuraContainer / CustomAuraButton rendszere kezeli az élő ikonokat,
-  a stackeket, a cooldown rajzolatát és a hátralévő időt; az addon nem olvassa ki a védett auraadatokat.
+  a stackeket és a cooldown rajzolatát; az addon nem olvassa ki a védett auraadatokat.
+  A hátralévő idő egyetlen számként, az ikonon belül látszik (a cooldown saját visszaszámlálója),
+  az ikon alatt nincs külön időszöveg. Ez a szám a játék cooldown-szám beállításától függ
+  (Interface beállítások, „cooldown számok mutatása”); ha az ki van kapcsolva, az ikonon nem látszik idő.
   Az aurák a saját névtáblához kapcsolódnak, a gyári UnitFrame elrejtése nem rejti el őket.
-  Régebbi kliensen, ha nincs AuraContainer támogatás, a korábbi aura-lekérés marad tartalékmegoldásként.
+  Régebbi kliensen, ha nincs AuraContainer támogatás, a korábbi aura-lekérés marad tartalékmegoldásként;
+  ott is csak az ikonon belüli visszaszámláló mutatja az időt.
   Raid target marker, a nem célzott ellenfelek halványítása.
   Méretarány 65–150%, szélesség 140–260, sávmagasság 12–26, függőleges eltolás -30…40.
   A baráti és a saját névtáblákat az addon megtartja. Ellenséges játékosnál nincs NPC-aggroszínezés.
@@ -122,6 +126,8 @@ ELLENŐRZÉS
   bizonytalanság, eseményregisztráció és a jelölő elrejtése. A magyar minták élő kliens nélkül készültek.
   0.2.1: a szintszín tesztje: lua tools/test_level_color.lua (nehézségi szín, „??” piros,
   hiányzó / hibás / rossz alakú kliensválasz és védett szint esetén skinszín mindhárom skinre).
+  0.2.2: a debuff-idő tesztje: lua tools/test_aura_timer.lua (a tartalék és a natív ikonokon
+  nincs ikon alatti időszöveg, a cooldown visszaszámlálója nincs elrejtve, a natív gomb cooldownt kap).
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK
