@@ -1,6 +1,8 @@
 -- Moteve Plates: predicted remaining damage of the player's own DoTs per enemy nameplate.
 -- Casts and spell descriptions give the first estimate, UNIT_COMBAT ticks the real tick size. Health is never
 -- read here except UnitHealthMax, which goes straight into the marker StatusBar: the client draws the result.
+-- A DoT only counts once it has provably landed: its first tick matched, or this cast's own debuff was seen.
+-- A seen debuff that disappears (dispel, removal) drops the DoT at once.
 -- Tracking approach ported from swirllyman/DoesItDie (MIT, see LICENSE-DoesItDie.txt).
 local _,ns=...
 local Dots={}
@@ -13,6 +15,8 @@ local WINDOW,WINDOW_ANCHORED,TRAVEL=0.45,0.25,1.5
 -- (own or party) are avoided all the time, so only an avoidance within MELEE_MISS_WINDOW counts for them.
 local MISS_WINDOW,MELEE_MISS_WINDOW,MISSED_TICKS_DROP,PENDING_TTL=1.5,0.3,2,5
 local CRIT_MIN,CRIT_MAX=1.3,2.3
+-- An own debuff proves a cast when it was (re)applied no earlier than AURA_SLACK before it; scans stop at AURA_CAP.
+local AURA_SLACK,AURA_CAP=0.5,255
 local MISS_ACTIONS={MISS=true,DODGE=true,PARRY=true,IMMUNE=true,RESIST=true,EVADE=true,DEFLECT=true,REFLECT=true}
 local AGONY={0.5,0.5,0.5,0.5,1,1,1,1,1.5,1.5,1.5,1.5}
 -- Rank spellIDs with their base durations (the last one repeats); finishers list durations per combo point.
@@ -177,6 +181,8 @@ function Dots.Start(token,spellID,text,locale,cp,now)
     if not dot then return nil end
     local st=states[token] or {dots={}}
     states[token]=st
+    -- The replaced DoT's debuff may still be up, so its presence alone proves nothing for this cast.
+    dot.replaced=st.dots[dot.spell.name]~=nil or nil
     st.dots[dot.spell.name]=dot
     return dot
 end
@@ -236,9 +242,9 @@ function Dots.MatchTick(token,amount,school,critical,now)
         end
     end
 end
--- An avoided cast: drops the newest unconfirmed DoT cast within MISS_WINDOW in a matching school.
--- Dodges and parries are melee outcomes, so they only count against Physical DoTs, and for those only
--- within MELEE_MISS_WINDOW of the cast.
+-- An avoided cast: drops the newest unconfirmed DoT cast within MISS_WINDOW in a matching school; a DoT whose
+-- debuff was seen has landed and is never dropped here. Dodges and parries are melee outcomes, so they only
+-- count against Physical DoTs, and for those only within MELEE_MISS_WINDOW of the cast.
 function Dots.Miss(token,action,school,now)
     local st=states[token]
     if not st or not MISS_ACTIONS[action] then return false end
@@ -247,7 +253,7 @@ function Dots.Miss(token,action,school,now)
     local newest,newestName
     for name,dot in pairs(st.dots) do
         local window=dot.spell.school==PHYSICAL and MELEE_MISS_WINDOW or MISS_WINDOW+(dot.spell.travel and TRAVEL or 0)
-        if not dot.confirmed and now-dot.cast<=window and (not melee or dot.spell.school==PHYSICAL)
+        if not dot.confirmed and not dot.auraSeen and now-dot.cast<=window and (not melee or dot.spell.school==PHYSICAL)
             and (not mask or mask==0 or HasSchool(mask,dot.spell.school)) and (not newest or dot.cast>newest.cast) then
             newest,newestName=dot,name
         end
@@ -267,6 +273,7 @@ function Dots.Combat(token,action,flag,amount,school,now)
     if Dots.Miss(token,action,school,now) then return "drop" end
 end
 -- Remaining predicted damage on a token, and whether it is hidden because the ticks are ambiguous.
+-- DoTs that haven't landed provably (no matched tick, no own debuff seen) add nothing.
 function Dots.Remaining(token,now)
     Dots.Advance(token,now)
     local st=states[token]
@@ -274,12 +281,71 @@ function Dots.Remaining(token,now)
     if st.ambiguous then return 0,true end
     local total=0
     for _,dot in pairs(st.dots) do
-        local size=TickSize(dot)
+        local size=(dot.confirmed or dot.auraSeen) and TickSize(dot)
         if size then
             for k=dot.landed+1,dot.n do total=total+size*Weight(dot,k) end
         end
     end
     return total
+end
+-- The player's own debuffs on a unit as tracked spell name -> application time (or true when unknown), or nil
+-- when the list can't be read completely: no API, an error, a secret entry, name or spellId, or no end in sight.
+-- Every index is read, whatever the aura icon options are.
+function Dots.ReadAuras(token)
+    local modern=C_UnitAuras and C_UnitAuras.GetAuraDataByIndex
+    if type(modern)~="function" and type(UnitAura)~="function" then return nil end
+    local present={}
+    for i=1,AURA_CAP do
+        local name,spellID,duration,expiration
+        if type(modern)=="function" then
+            local ok,data=pcall(modern,token,i,"HARMFUL|PLAYER")
+            if not ok or ns.Secret(data) then return nil end
+            if data==nil then return present end
+            if type(data)~="table" then return nil end
+            name,spellID,duration,expiration=data.name,data.spellId,data.duration,data.expirationTime
+        else
+            local ok,auraName,_,_,_,auraDuration,auraExpiration,_,_,_,auraID=pcall(UnitAura,token,i,"HARMFUL|PLAYER")
+            if not ok then return nil end
+            if not ns.Secret(auraName) and auraName==nil then return present end
+            name,spellID,duration,expiration=auraName,auraID,auraDuration,auraExpiration
+        end
+        if ns.Secret(name) or ns.Secret(spellID) then return nil end
+        local record=byID[ns.Number(spellID) or false]
+        local spell=record and record.spell or byName[name]
+        if spell then
+            duration,expiration=ns.Number(duration),ns.Number(expiration)
+            local at=duration and expiration and duration>0 and expiration>0 and expiration-duration or true
+            local old=present[spell.name]
+            if old==nil or (type(at)=="number" and (type(old)~="number" or at>old)) then present[spell.name]=at end
+        end
+    end
+end
+-- Applies one complete read of the own debuffs: a DoT whose debuff this cast (re)applied is proven, and a proven
+-- DoT whose debuff is gone is dropped. Unreadable auras (nil) change nothing. Returns true when anything changed.
+function Dots.SyncAuras(token,present,now)
+    if type(present)~="table" then return false end
+    Dots.Advance(token,now)
+    local st=states[token]
+    if not st then return false end
+    local changed=false
+    for name,dot in pairs(st.dots) do
+        local at=present[name]
+        if at==nil then
+            if dot.auraSeen then st.dots[name]=nil;changed=true end
+        elseif not dot.auraSeen and ((type(at)=="number" and at>=dot.cast-AURA_SLACK) or (at==true and not dot.replaced)) then
+            dot.auraSeen=true;changed=true
+        end
+    end
+    Prune(token)
+    return changed
+end
+local function Unproven(token)
+    local st=states[token]
+    if not st then return false end
+    for _,dot in pairs(st.dots) do
+        if not dot.confirmed and not dot.auraSeen then return true end
+    end
+    return false
 end
 function Dots.Clear(token)
     states[token]=nil
@@ -318,7 +384,10 @@ function ns.UpdateDotMarker(f)
     if not bar then return end
     local remaining=0
     if ns.db and ns.db.enabled and ns.db.showDotPrediction and bar.reverseFill and f.unit then
-        remaining=Dots.Remaining(f.unit,Now())
+        local now=Now()
+        -- The plate ticker polls the debuffs while a DoT waits for proof, in case its UNIT_AURA was missed.
+        if Unproven(f.unit) then Dots.SyncAuras(f.unit,Dots.ReadAuras(f.unit),now) end
+        remaining=Dots.Remaining(f.unit,now)
     end
     if remaining<=0 then bar:Hide();return end
     local maxHP=ns.API(UnitHealthMax,f.unit)
@@ -366,7 +435,10 @@ function handlers.UNIT_SPELLCAST_SUCCEEDED(unit,castGUID,spellID)
     end
     local text=SpellText(spellID,C_Spell and C_Spell.GetSpellDescription,GetSpellDescription)
     local locale=Readable(ns.API(GetLocale))
-    Dots.Start(cast.token,spellID,text,type(locale)=="string" and locale or nil,cast.cp,Now())
+    local now=Now()
+    Dots.Start(cast.token,spellID,text,type(locale)=="string" and locale or nil,cast.cp,now)
+    -- The debuff's UNIT_AURA can come before SUCCEEDED, so the debuffs are read right away.
+    Dots.SyncAuras(cast.token,Dots.ReadAuras(cast.token),now)
     Refresh(cast.token)
 end
 function handlers.UNIT_COMBAT(unit,action,flag,amount,school)
@@ -376,7 +448,11 @@ function handlers.UNIT_COMBAT(unit,action,flag,amount,school)
     school=ns.Number(school)
     if Dots.Combat(unit,action,type(flag)=="string" and flag or "",ns.Number(amount),school,Now()) then Refresh(unit) end
 end
-local EVENTS={"UNIT_SPELLCAST_SENT","UNIT_SPELLCAST_SUCCEEDED","UNIT_COMBAT"}
+function handlers.UNIT_AURA(unit)
+    if ns.Secret(unit) or type(unit)~="string" or not ns.active[unit] or not states[unit] then return end
+    if Dots.SyncAuras(unit,Dots.ReadAuras(unit),Now()) then Refresh(unit) end
+end
+local EVENTS={"UNIT_SPELLCAST_SENT","UNIT_SPELLCAST_SUCCEEDED","UNIT_COMBAT","UNIT_AURA"}
 local frame,registered
 -- Events are registered only while both the addon and the prediction are on; off wipes every state.
 function Dots.Sync()

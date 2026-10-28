@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.3**
+**Aktuális verzió: 0.2.4**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -78,6 +78,8 @@ Korlátok:
 - Cast nélküli DoT-okat (Deep Wounds, Ignite, mérgek) és a mob gyógyulását nem számolja.
 - Ha a kliens nem adja meg a kombópontokat, a Rip és a Rupture a legkisebb kombópontszámmal számol, így a becslés alacsonyabb lehet.
 - Ha egy másik játékos ugyanolyan iskolájú sebzése összetéveszthető a tickjeiddel, a jelölő eltűnik, amíg a tickek újra egyértelműek. Csoportban ezért ritkábban látszik.
+- A jelölő csak akkor számol egy DoT-tal, ha az bizonyíthatóan felkerült: látszik a saját debuffja, vagy beérkezett az első tickje. A resistelt, missed vagy immune DoT így egy pillanatra sem jelenik meg. Ha a saját debuffokat a kliens védett adatként adja, a DoT az első ticktől látszik.
+- Ha a DoT debuffja lekerül (dispel vagy más eltávolítás), a DoT azonnal kiesik, és a jelölő frissül.
 - Közvetlenül a cast után érkező miss, dodge, parry, resist vagy immune eldobja a DoT-ot, ahogy két elmaradt tick is. Újabb casttal a követés újraindul.
 - A tanult tickméreteket a `/mp dotreset` törli.
 
@@ -120,6 +122,8 @@ A 0.2.1-es verzióban a névtábla szintszáma és elit `+` jele a mob nehézsé
 A 0.2.2-es verzióban a saját debuff ikonokon a hátralévő idő csak egyszer, az ikonon belüli visszaszámlálóként látszik; az ikon alatti kis időszöveg kikerült, a natív és a tartalék aura-megjelenítőn egyaránt. A `/mp` panel előnézete is futó cooldownt mutat. A belső szám a játék cooldown-szám beállításától függ. A `tools/test_aura_timer.lua` ezt helyi stubokkal ellenőrzi; élő kliensen még nem teszteltük.
 
 A 0.2.3-as verzióban a DoT-előrejelzés jelölőjének színe a `/mp` panelen választható: Skin szerint (alapérték, a korábbi színek) vagy hét előre megadott szín közül. A `tools/test_dot_color.lua` helyi stubokkal ellenőrzi a színfeloldást, a jelölő színezését és a mentett érték ellenőrzését; élő kliensen még nem teszteltük.
+
+A 0.2.4-es verzióban a DoT-előrejelzés jelölője csak a ténylegesen felkerült DoT-okat mutatja: a saját debuff megjelenése vagy az első tick után. Resistnél a jelölő nem villan fel, a dispellelt DoT pedig azonnal kiesik. A `tools/test_dots.lua` helyi stubokkal ellenőrzi a megerősítetlen DoT rejtését, a saját debuffok beolvasását és a dispel utáni eldobást; élő kliensen még nem teszteltük.
 
 ## Hibajelentés
 

@@ -79,7 +79,11 @@ local function near(actual,expected,what)
 end
 
 local SHADOW,FIRE,NATURE,PHYSICAL=32,4,8,1
-local CORRUPTION,AGONY,SIPHON,SWP,RUPTURE,RIP,REND=25311,11713,18881,10894,11275,9896,11574
+local CORRUPTION,AGONY,SIPHON,SWP,RUPTURE,RIP,REND,IMMOLATE=25311,11713,18881,10894,11275,9896,11574,25309
+-- Proves a DoT the way its own debuff, applied at `at`, does; the token's other DoTs must have no debuff seen.
+local function Prove(Dots,token,name,at)
+    eq(Dots.SyncAuras(token,{[name]=at},at),true,name.." proven")
+end
 -- Forever's enUS tooltips (max ranks) and huHU wording for the same spells.
 local EN={
     Corruption="Corrupts the target, causing 438 Shadow damage over 18 sec.",
@@ -93,6 +97,7 @@ local EN={
     ["Siphon Life"]="Transfers 41 health from the target to the caster every 3 sec. Lasts 30 sec.",
     ["Bane of Agony"]="Afflicts the target with agony, causing 552 Shadow damage over 24 sec. This damage is dealt slowly at first, and builds up as the Bane reaches its full duration.",
     Rupture="Finishing move that causes damage over time, increased by your Attack Power. Lasts longer per combo point:\n1 point : 159 damage over 8 secs\n2 points: 222 damage over 10 secs\n3 points: 295 damage over 12 secs\n4 points: 377 damage over 14 secs\n5 points: 469 damage over 16 secs\n\nRequires Melee Weapon",
+    Immolate="Burns the enemy for 279 Fire damage and then an additional 510 Fire damage over 15 sec.",
     Rip="Finishing move that causes damage over time. Damage increases per combo point and by your Attack Power:\n1 point : 243 damage over 12 sec.\n2 points: 396 damage over 12 sec.\n3 points: 549 damage over 12 sec.\n4 points: 702 damage over 12 sec.\n5 points: 855 damage over 12 sec.",
 }
 local HU={
@@ -178,12 +183,14 @@ end)
 test("learned_size_and_estimate",function()
     local Dots,ns=Load()
     Dots.Start("nameplate1",CORRUPTION,EN.Corruption,"enUS",nil,0)
+    Prove(Dots,"nameplate1","Corruption",0)
     near(Dots.Remaining("nameplate1",0),438,"parsed estimate")
     Dots.MatchTick("nameplate1",80,SHADOW,false,3)
     near(Dots.Remaining("nameplate1",3),400,"after first tick")
     for t=6,18,3 do eq(Dots.MatchTick("nameplate1",80,SHADOW,false,t),"match","tick at "..t) end
     near(Dots.Remaining("nameplate1",18),0,"expired")
     Dots.Start("nameplate1",CORRUPTION,EN.Corruption,"enUS",nil,30)
+    Prove(Dots,"nameplate1","Corruption",30)
     near(Dots.Remaining("nameplate1",30),480,"learned size wins over the description")
     -- No description and nothing learned: tracked, contributes nothing until its first tick.
     Dots.Start("nameplate3",SWP,nil,"deDE",nil,0)
@@ -192,10 +199,12 @@ test("learned_size_and_estimate",function()
     near(Dots.Remaining("nameplate3",3),600,"learned from the first tick")
     -- Finishers learn per combo point; an unreadable count teaches nothing.
     Dots.Start("nameplate4",RUPTURE,EN.Rupture,"enUS",5,0)
+    Prove(Dots,"nameplate4","Rupture",0)
     near(Dots.Remaining("nameplate4",0),469,"5 point Rupture")
     Dots.MatchTick("nameplate4",70,PHYSICAL,false,2)
     eq(ns.db.dotTicks[RUPTURE..":5"],70,"learned per combo point")
     Dots.Start("nameplate5",RUPTURE,EN.Rupture,"enUS",SECRET,0)
+    Prove(Dots,"nameplate5","Rupture",0)
     near(Dots.Remaining("nameplate5",0),159,"unknown combo points use the lowest entry")
     Dots.MatchTick("nameplate5",40,PHYSICAL,false,2)
     for key in pairs(ns.db.dotTicks) do
@@ -203,6 +212,7 @@ test("learned_size_and_estimate",function()
     end
     -- Agony ticks 0.5x, 1x, 1.5x the average (46).
     Dots.Start("nameplate6",AGONY,EN["Bane of Agony"],"enUS",nil,0)
+    Prove(Dots,"nameplate6","Curse of Agony",0)
     near(Dots.Remaining("nameplate6",0),552,"Agony estimate")
     eq(Dots.MatchTick("nameplate6",23,SHADOW,false,2),"match","small first Agony tick")
     near(Dots.Remaining("nameplate6",2),46*11.5,"Agony after one tick")
@@ -230,6 +240,7 @@ test("drop_on_miss_or_immune",function()
     end
     Dots.Start("nameplate3",RUPTURE,EN.Rupture,"enUS",5,0)
     eq(Dots.Combat("nameplate3","MISS","",nil,PHYSICAL,1),nil,"MISS 1s after Rupture")
+    Prove(Dots,"nameplate3","Rupture",0.2)
     near(Dots.Remaining("nameplate3",1),469,"Rupture kept")
     Dots.Clear("nameplate3")
     eq(Dots.Combat("nameplate1","DODGE","",nil,PHYSICAL,0.3),nil,"a dodge is not a Shadow DoT's miss")
@@ -247,6 +258,7 @@ end)
 test("drop_after_two_missed_ticks",function()
     local Dots=Load()
     Dots.Start("nameplate1",CORRUPTION,EN.Corruption,"enUS",nil,0)
+    Prove(Dots,"nameplate1","Corruption",0)
     near(Dots.Remaining("nameplate1",3.5),365,"one missed tick")
     near(Dots.Remaining("nameplate1",6.5),0,"two missed ticks")
     eq(Dots.states.nameplate1,nil,"dropped")
@@ -257,6 +269,92 @@ test("drop_after_two_missed_ticks",function()
     near(Dots.Remaining("nameplate2",9.3),219,"third tick missed")
     eq(Dots.MatchTick("nameplate2",73,SHADOW,false,12),"match","fourth tick")
     near(Dots.Remaining("nameplate2",12),146,"still tracked")
+end)
+test("unproven_dot_stays_hidden",function()
+    local Dots=Load()
+    Dots.Start("nameplate1",IMMOLATE,EN.Immolate,"enUS",nil,0) -- 5 ticks of 102 every 3s
+    near(Dots.Remaining("nameplate1",0.1),0,"right after the cast")
+    near(Dots.Remaining("nameplate1",2),0,"before the first tick")
+    eq(Dots.Combat("nameplate1","RESIST","",nil,FIRE,0.5),"drop","resist")
+    eq(Dots.states.nameplate1,nil,"resist clears the token");near(Dots.Remaining("nameplate1",0.5),0,"after the resist")
+    -- No resist event and no debuff: hidden until the first tick proves it.
+    Dots.Start("nameplate1",IMMOLATE,EN.Immolate,"enUS",nil,10)
+    near(Dots.Remaining("nameplate1",12.9),0,"unproven without a resist event")
+    eq(Dots.MatchTick("nameplate1",102,FIRE,false,13),"match","first tick")
+    near(Dots.Remaining("nameplate1",13),408,"shown from the first tick")
+    -- Lost resist event: dropped by the missed ticks without ever showing.
+    Dots.Start("nameplate2",IMMOLATE,EN.Immolate,"enUS",nil,0)
+    for t=0.1,7,0.1 do near(Dots.Remaining("nameplate2",t),0,"resisted at "..t) end
+    eq(Dots.states.nameplate2,nil,"dropped after two missed ticks")
+    -- A debuff that landed can't have been resisted: a later resist of another cast keeps it.
+    Dots.Start("nameplate3",IMMOLATE,EN.Immolate,"enUS",nil,0)
+    Prove(Dots,"nameplate3","Immolate",0.2)
+    eq(Dots.Combat("nameplate3","RESIST","",nil,FIRE,0.8),nil,"resist after the debuff landed")
+    near(Dots.Remaining("nameplate3",0.8),510,"kept and shown")
+end)
+test("aura_proves_and_removal_drops",function()
+    local Dots=Load()
+    Dots.Start("nameplate1",IMMOLATE,EN.Immolate,"enUS",nil,0)
+    Dots.Start("nameplate1",CORRUPTION,EN.Corruption,"enUS",nil,1.5)
+    eq(Dots.SyncAuras("nameplate1",{Immolate=0.3},1.6),true,"Immolate debuff")
+    near(Dots.Remaining("nameplate1",1.6),510,"only the proven DoT counts")
+    eq(Dots.SyncAuras("nameplate1",{Immolate=0.3},1.7),false,"nothing new")
+    eq(Dots.SyncAuras("nameplate1",nil,1.8),false,"unreadable auras change nothing")
+    eq(Dots.SyncAuras("nameplate1",{},1.9),true,"Immolate dispelled")
+    eq(Dots.states.nameplate1.dots.Immolate,nil,"dispelled DoT dropped")
+    eq(Dots.states.nameplate1.dots.Corruption~=nil,true,"unproven DoT is not dropped for being absent")
+    near(Dots.Remaining("nameplate1",1.9),0,"nothing left to show")
+    Dots.SyncAuras("nameplate1",{Corruption=true},2);near(Dots.Remaining("nameplate1",2),438,"unknown time proves a first cast")
+    eq(Dots.SyncAuras("nameplate1",{},2.1),true,"Corruption removed");eq(Dots.states.nameplate1,nil,"token cleared")
+    -- A recast over a live DoT: the old debuff proves nothing, a refreshed one does.
+    Dots.Start("nameplate2",IMMOLATE,EN.Immolate,"enUS",nil,0)
+    Prove(Dots,"nameplate2","Immolate",0.2)
+    Dots.Start("nameplate2",IMMOLATE,EN.Immolate,"enUS",nil,6)
+    eq(Dots.SyncAuras("nameplate2",{Immolate=0.2},6.1),false,"old debuff")
+    eq(Dots.SyncAuras("nameplate2",{Immolate=true},6.1),false,"debuff of unknown age")
+    near(Dots.Remaining("nameplate2",6.1),0,"resisted recast stays hidden")
+    eq(Dots.SyncAuras("nameplate2",{Immolate=6.2},6.3),true,"refreshed debuff")
+    near(Dots.Remaining("nameplate2",6.3),510,"recast shown")
+end)
+test("read_auras",function()
+    local Dots,ns=Load()
+    ns.db.showAuras,ns.db.maxAuras=false,2
+    local list
+    C_UnitAuras={GetAuraDataByIndex=function(unit,i,filter)
+        eq(unit,"nameplate1","unit");eq(filter,"HARMFUL|PLAYER","filter")
+        return list[i]
+    end}
+    local ok,err=pcall(function()
+        list={{name="Sebezhetőség",spellId=1},{name="Égő",spellId=IMMOLATE,duration=15,expirationTime=20},
+            {name="Bane of Agony",spellId=99999,duration=0,expirationTime=0},{name="Rupture",duration=16,expirationTime=SECRET}}
+        local present=Dots.ReadAuras("nameplate1")
+        near(present.Immolate,5,"by spellId, past maxAuras and with icons off")
+        eq(present["Curse of Agony"],true,"alias by name, no time")
+        eq(present.Rupture,true,"secret time is unknown")
+        eq(present["Sebezhetőség"],nil,"untracked debuff");eq(present["Bane of Agony"],nil,"keyed by the tracked name")
+        list={{name="Immolate",spellId=IMMOLATE},SECRET};eq(Dots.ReadAuras("nameplate1"),nil,"secret entry")
+        list={{name="Immolate",spellId=IMMOLATE},{name=SECRET,spellId=1}};eq(Dots.ReadAuras("nameplate1"),nil,"secret name")
+        list={{name="Immolate",spellId=SECRET}};eq(Dots.ReadAuras("nameplate1"),nil,"secret spellId")
+        list={};eq(next(Dots.ReadAuras("nameplate1")),nil,"no debuffs is a complete read")
+        list=setmetatable({},{__index=function() return {name="Curse",spellId=1} end})
+        eq(Dots.ReadAuras("nameplate1"),nil,"no end of the list")
+        C_UnitAuras.GetAuraDataByIndex=function() error("blocked") end
+        eq(Dots.ReadAuras("nameplate1"),nil,"API error")
+        C_UnitAuras=nil
+        eq(Dots.ReadAuras("nameplate1"),nil,"no API")
+        -- Older clients: UnitAura's 10th return is the spellId.
+        UnitAura=function(_,i)
+            local aura=list[i]
+            if aura then return aura[1],"icon",1,"Magic",aura[2],aura[3],"player",false,false,aura[4] end
+        end
+        list={{"Égő",15,20,IMMOLATE},{"Bane of Agony",24,30,99999}}
+        present=Dots.ReadAuras("nameplate1")
+        near(present.Immolate,5,"UnitAura by spellId");near(present["Curse of Agony"],6,"UnitAura alias by name")
+        list={{"Immolate",15,20,SECRET}};eq(Dots.ReadAuras("nameplate1"),nil,"UnitAura secret spellId")
+        list={{SECRET,15,20,IMMOLATE}};eq(Dots.ReadAuras("nameplate1"),nil,"UnitAura secret name")
+    end)
+    C_UnitAuras,UnitAura=nil,nil
+    if not ok then error(err,0) end
 end)
 test("ambiguous_same_school_hides",function()
     local Dots=Load()
@@ -304,6 +402,7 @@ test("sync_registers_only_when_both_on",function()
     eq(registered.UNIT_SPELLCAST_SENT,"player","SENT for player")
     eq(registered.UNIT_SPELLCAST_SUCCEEDED,"player","SUCCEEDED for player")
     eq(registered.UNIT_COMBAT,"all","UNIT_COMBAT")
+    eq(registered.UNIT_AURA,"all","UNIT_AURA")
     eq(#frames,1,"one frame")
     for _,combo in ipairs({{true,false},{false,true},{false,false}}) do
         db.enabled,db.showDotPrediction=true,true;Dots.Sync()
@@ -327,6 +426,8 @@ test("update_marker_hides_when_off",function()
     ns.active.nameplate1=f
     ns.UpdateDotMarker(f);eq(f.dot.shown,false,"no state")
     Dots.Start("nameplate1",CORRUPTION,EN.Corruption,"enUS",nil,0)
+    ns.UpdateDotMarker(f);eq(f.dot.shown,false,"hidden until proven")
+    Prove(Dots,"nameplate1","Corruption",0)
     ns.UpdateDotMarker(f)
     eq(f.dot.shown,true,"shown");eq(f.dot.min,0,"min");eq(f.dot.max,5000,"max is UnitHealthMax");near(f.dot.value,438,"value")
     maxHP=SECRET
@@ -350,6 +451,7 @@ test("clear_and_reset_learned",function()
     Dots.ResetLearned()
     eq(next(ns.db.dotTicks),nil,"dotTicks emptied")
     Dots.Start("nameplate3",CORRUPTION,EN.Corruption,"enUS",nil,10)
+    Prove(Dots,"nameplate3","Corruption",10)
     near(Dots.Remaining("nameplate3",10),438,"old size no longer used")
     ns.db.dotTicks="broken";Dots.InitLearned()
     eq(type(ns.db.dotTicks),"table","non-table repaired")
@@ -380,6 +482,57 @@ test("detach_and_apply_options",function()
     eq(registered.UNIT_COMBAT,"all","ApplyOptions syncs the DoT events")
     ns.db.showDotPrediction=false;ns.ApplyOptions()
     eq(next(registered),nil,"ApplyOptions unregisters when off")
+end)
+test("cast_and_aura_events_drive_the_marker",function()
+    StubCreateFrame()
+    local now,auras=100,{}
+    GetTime=function() return now end
+    UnitHealthMax=function() return 5000 end
+    UnitIsUnit=function(a,b) return a=="target" and b=="nameplate1" end
+    UnitName=function() return "Mob" end
+    GetSpellDescription=function(id) if id==IMMOLATE then return EN.Immolate end end
+    GetLocale=function() return "enUS" end
+    C_UnitAuras={GetAuraDataByIndex=function(unit,i) return auras[unit] and auras[unit][i] end}
+    local ok,err=pcall(function()
+        local Dots,ns=Load()
+        ns:Fire("MP_INIT")
+        local script=frames[1].script
+        local function Fire(event,...) script(frames[1],event,...) end
+        local f={unit="nameplate1",dot=Bar()}
+        ns.active.nameplate1,ns.active.nameplate2=f,{unit="nameplate2",dot=Bar()}
+        local function Cast(guid)
+            Fire("UNIT_SPELLCAST_SENT","player","Mob",guid,IMMOLATE)
+            Fire("UNIT_SPELLCAST_SUCCEEDED","player",guid,IMMOLATE)
+        end
+        -- Resisted: no debuff, never shown, even on the ticker.
+        Cast("cast-1")
+        eq(f.dot.shown,false,"resisted cast hidden")
+        for i=1,20 do now=now+0.1;ns.UpdateDotMarker(f);eq(f.dot.shown,false,"resisted cast at "..now) end
+        -- The debuff's UNIT_AURA came before SUCCEEDED: shown straight away.
+        now=110;auras.nameplate1={{name="Immolate",spellId=IMMOLATE,duration=15,expirationTime=125}}
+        Cast("cast-2")
+        eq(f.dot.shown,true,"landed cast shown at SUCCEEDED");near(f.dot.value,510,"value")
+        -- Unrelated, non-active and secret units change nothing.
+        auras.nameplate1={}
+        Fire("UNIT_AURA","nameplate2");Fire("UNIT_AURA","target");Fire("UNIT_AURA",SECRET)
+        eq(Dots.states.nameplate1~=nil,true,"other units don't touch nameplate1")
+        -- Dispel: the next UNIT_AURA drops it and hides the marker at once.
+        Fire("UNIT_AURA","nameplate1")
+        eq(Dots.states.nameplate1,nil,"dispelled DoT dropped");eq(f.dot.shown,false,"marker hidden by UNIT_AURA")
+        -- Secret aura data while a DoT is proven: kept, the tick/miss rules stay in charge.
+        now=120;auras.nameplate1={{name="Immolate",spellId=IMMOLATE,duration=15,expirationTime=135}}
+        Cast("cast-3");eq(f.dot.shown,true,"shown")
+        auras.nameplate1={SECRET};Fire("UNIT_AURA","nameplate1")
+        eq(Dots.states.nameplate1~=nil,true,"secret auras drop nothing");eq(f.dot.shown,true,"still shown")
+        -- A UNIT_AURA missed between the cast and the debuff: the ticker poll shows it.
+        Dots.Clear("nameplate1");auras.nameplate1={}
+        now=130;Cast("cast-4");eq(f.dot.shown,false,"debuff not up yet")
+        now=130.3;auras.nameplate1={{name="Immolate",spellId=IMMOLATE,duration=15,expirationTime=145.3}}
+        ns.UpdateDotMarker(f);eq(f.dot.shown,true,"ticker poll proves it")
+        eq(#ns.errors,0,"handler errors: "..table.concat(ns.errors,"; "))
+    end)
+    C_UnitAuras,UnitIsUnit,UnitName,GetSpellDescription,GetLocale=nil,nil,nil,nil,nil
+    if not ok then error(err,0) end
 end)
 
 print(string.format("%d/%d passed",count-failures,count))
