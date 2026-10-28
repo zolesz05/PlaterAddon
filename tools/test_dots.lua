@@ -221,6 +221,17 @@ test("drop_on_miss_or_immune",function()
         eq(Dots.states.nameplate1,nil,action.." clears the token")
     end
     Dots.Start("nameplate1",CORRUPTION,EN.Corruption,"enUS",nil,0)
+    -- An avoided white swing after a bleed's cast leaves the bleed alone.
+    for _,action in ipairs({"MISS","DODGE","PARRY"}) do
+        Dots.Start("nameplate3",REND,EN.Rend,"enUS",nil,0)
+        eq(Dots.Combat("nameplate3",action,"",nil,PHYSICAL,1),nil,action.." 1s after a bleed")
+        eq(Dots.states.nameplate3 and Dots.states.nameplate3.dots.Rend~=nil,true,action.." keeps the bleed")
+        Dots.Clear("nameplate3")
+    end
+    Dots.Start("nameplate3",RUPTURE,EN.Rupture,"enUS",5,0)
+    eq(Dots.Combat("nameplate3","MISS","",nil,PHYSICAL,1),nil,"MISS 1s after Rupture")
+    near(Dots.Remaining("nameplate3",1),469,"Rupture kept")
+    Dots.Clear("nameplate3")
     eq(Dots.Combat("nameplate1","DODGE","",nil,PHYSICAL,0.3),nil,"a dodge is not a Shadow DoT's miss")
     eq(Dots.Combat("nameplate1","MISS","",nil,SHADOW,2),nil,"miss after the window")
     Dots.MatchTick("nameplate1",73,SHADOW,false,3)

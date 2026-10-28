@@ -9,7 +9,9 @@ local PHYSICAL,FIRE,NATURE,SHADOW,ARCANE=1,4,8,32,64
 -- Tick windows (s) either side of an expected tick; tighter once a tick has re-anchored the rhythm, so melee
 -- white hits (Physical, ~1s rhythm) don't pass as bleed ticks. Projectiles may tick up to TRAVEL later.
 local WINDOW,WINDOW_ANCHORED,TRAVEL=0.45,0.25,1.5
-local MISS_WINDOW,MISSED_TICKS_DROP,PENDING_TTL=1.5,2,5
+-- Physical DoTs are instant melee specials: their avoidance arrives with the cast, while white swings
+-- (own or party) are avoided all the time, so only an avoidance within MELEE_MISS_WINDOW counts for them.
+local MISS_WINDOW,MELEE_MISS_WINDOW,MISSED_TICKS_DROP,PENDING_TTL=1.5,0.3,2,5
 local CRIT_MIN,CRIT_MAX=1.3,2.3
 local MISS_ACTIONS={MISS=true,DODGE=true,PARRY=true,IMMUNE=true,RESIST=true,EVADE=true,DEFLECT=true,REFLECT=true}
 local AGONY={0.5,0.5,0.5,0.5,1,1,1,1,1.5,1.5,1.5,1.5}
@@ -235,7 +237,8 @@ function Dots.MatchTick(token,amount,school,critical,now)
     end
 end
 -- An avoided cast: drops the newest unconfirmed DoT cast within MISS_WINDOW in a matching school.
--- Dodges and parries are melee outcomes, so they only count against Physical DoTs.
+-- Dodges and parries are melee outcomes, so they only count against Physical DoTs, and for those only
+-- within MELEE_MISS_WINDOW of the cast.
 function Dots.Miss(token,action,school,now)
     local st=states[token]
     if not st or not MISS_ACTIONS[action] then return false end
@@ -243,7 +246,7 @@ function Dots.Miss(token,action,school,now)
     local mask=tonumber(school)
     local newest,newestName
     for name,dot in pairs(st.dots) do
-        local window=MISS_WINDOW+(dot.spell.travel and TRAVEL or 0)
+        local window=dot.spell.school==PHYSICAL and MELEE_MISS_WINDOW or MISS_WINDOW+(dot.spell.travel and TRAVEL or 0)
         if not dot.confirmed and now-dot.cast<=window and (not melee or dot.spell.school==PHYSICAL)
             and (not mask or mask==0 or HasSchool(mask,dot.spell.school)) and (not newest or dot.cast>newest.cast) then
             newest,newestName=dot,name
