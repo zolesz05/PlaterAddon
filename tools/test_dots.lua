@@ -535,5 +535,237 @@ test("cast_and_aura_events_drive_the_marker",function()
     if not ok then error(err,0) end
 end)
 
+-- Deep Wounds: a proc DoT started by the player's own debuff, never by a cast.
+local DEEP_WOUNDS,DW_RANKS="Deep Wounds",{12162,12850,12868}
+local DW_GLOBALS={"UnitDamage","IsPlayerSpell","IsSpellKnown","UnitClass","C_Spell","GetSpellInfo","C_UnitAuras",
+    "GetTime","UnitHealthMax","UnitIsUnit","UnitName","GetSpellDescription","GetLocale"}
+-- Runs a case and resets the WoW globals it may stub, so later cases keep a non-Warrior, stub-free world.
+local function Isolated(fn)
+    return function()
+        local ok,err=pcall(fn)
+        for _,name in ipairs(DW_GLOBALS) do _G[name]=nil end
+        if not ok then error(err,0) end
+    end
+end
+-- Weapon 90-110 (average 100) and talent rank 2 (40%): 40 over 4 ticks of 10.
+local function DeepWoundsRank2()
+    UnitDamage=function(unit) if unit=="player" then return 90,110,0,0,0,0,1 end end
+    IsPlayerSpell=function(id) return id==DW_RANKS[2] end
+end
+local function DW(at) return {[DEEP_WOUNDS]=at} end
+test("deep_wounds_entry_and_cast_guard",Isolated(function()
+    StubCreateFrame()
+    local now=100
+    GetTime=function() return now end
+    UnitHealthMax=function() return 5000 end
+    UnitIsUnit=function(a,b) return a=="target" and b=="nameplate1" end
+    UnitName=function() return "Mob" end
+    C_Spell={GetSpellName=function(id) if id==12721 or id==99999 then return "Mély sebek" end end}
+    local Dots,ns=Load()
+    local record=Dots.SPELLS[12721]
+    eq(record and record.spell.name,DEEP_WOUNDS,"debuff id");eq(record.spell.school,PHYSICAL,"Physical")
+    eq(Dots.NewDot(12721,nil,nil,nil,0).n,4,"4 ticks over 12s")
+    for _,id in ipairs(DW_RANKS) do eq(Dots.SPELLS[id],nil,"talent id "..id.." is no debuff") end
+    ns:Fire("MP_INIT")
+    eq(Dots.SPELL_NAMES["Mély sebek"],record.spell,"localized name registered")
+    local script=frames[1].script
+    local function Fire(event,...) script(frames[1],event,...) end
+    ns.active.nameplate1={unit="nameplate1",dot=Bar()}
+    -- SENT for Deep Wounds (by id or by its localized name) leaves no pending cast for a later SUCCEEDED.
+    for i,id in ipairs({12721,99999}) do
+        local guid="dw-"..i
+        Fire("UNIT_SPELLCAST_SENT","player","Mob",guid,id)
+        Fire("UNIT_SPELLCAST_SUCCEEDED","player",guid,id)
+        eq(Dots.states.nameplate1,nil,"no state from cast "..id)
+        Fire("UNIT_SPELLCAST_SENT","player","Mob",guid.."b",id)
+        Fire("UNIT_SPELLCAST_SUCCEEDED","player",guid.."b",REND)
+        eq(Dots.states.nameplate1,nil,"no pending entry from SENT "..id)
+    end
+    -- A stray SUCCEEDED for the debuff id after a tracked SENT starts nothing.
+    for i,id in ipairs({12721,99999}) do
+        Fire("UNIT_SPELLCAST_SENT","player","Mob","rend-"..i,REND)
+        Fire("UNIT_SPELLCAST_SUCCEEDED","player","rend-"..i,id)
+        eq(Dots.states.nameplate1,nil,"no state from SUCCEEDED "..id)
+    end
+    eq(Dots.SPELLS[99999],nil,"the localized name teaches no cast id")
+    eq(#ns.errors,0,"handler errors: "..table.concat(ns.errors,"; "))
+end))
+test("deep_wounds_starts_from_debuff_with_estimate",Isolated(function()
+    DeepWoundsRank2()
+    local Dots,ns=Load()
+    eq(Dots.SyncAuras("nameplate1",DW(100),100),true,"debuff with no state")
+    local dot=Dots.states.nameplate1.dots[DEEP_WOUNDS]
+    eq(dot.auraSeen,true,"proven by the debuff");eq(dot.landed,0,"no ticks yet")
+    near(Dots.Remaining("nameplate1",100),40,"weapon estimate counts at once")
+    eq(Dots.MatchTick("nameplate1",100,PHYSICAL,false,103),nil,"white hit refused")
+    eq(Dots.MatchTick("nameplate1",10,PHYSICAL,false,103),"match","tick of 10")
+    near(Dots.Remaining("nameplate1",103),30,"after the first tick")
+    eq(next(ns.db.dotTicks),nil,"nothing saved")
+    -- Rank 3 and IsSpellKnown when IsPlayerSpell can't say.
+    IsPlayerSpell=nil;IsSpellKnown=function(id) return id==DW_RANKS[3] end
+    Dots.SyncAuras("nameplate2",DW(100),100)
+    near(Dots.Remaining("nameplate2",100),60,"rank 3 estimate")
+end))
+test("deep_wounds_without_estimate_uses_anchored_window",Isolated(function()
+    local Dots,ns=Load()
+    Dots.SyncAuras("nameplate1",DW(100),100)
+    near(Dots.Remaining("nameplate1",100),0,"no estimate: nothing yet")
+    eq(Dots.states.nameplate1.dots[DEEP_WOUNDS].anchored,true,"tight window")
+    eq(Dots.MatchTick("nameplate1",12,PHYSICAL,false,103.1),"match","first tick inside the anchored window")
+    near(Dots.Remaining("nameplate1",103.1),36,"3 ticks of the measured size")
+    eq(next(ns.db.dotTicks),nil,"nothing saved")
+    eq(Dots.MatchTick("nameplate1",100,PHYSICAL,false,103.3),nil,"white hit 0.2s later")
+    local remaining,ambiguous=Dots.Remaining("nameplate1",103.3)
+    near(remaining,36,"still shown");eq(ambiguous,nil,"not ambiguous")
+    Dots.SyncAuras("nameplate2",DW(100),100)
+    eq(Dots.MatchTick("nameplate2",12,PHYSICAL,false,103.35),nil,"outside the anchored window")
+    -- A readable weapon without a known talent rank is no estimate either.
+    UnitDamage=function() return 90,110 end;IsPlayerSpell=function() return false end
+    Dots.SyncAuras("nameplate3",DW(100),100)
+    near(Dots.Remaining("nameplate3",100),0,"no rank: nothing yet")
+    -- Neither is a secret weapon damage.
+    DeepWoundsRank2();UnitDamage=function() return SECRET,110 end
+    Dots.SyncAuras("nameplate4",DW(100),100)
+    near(Dots.Remaining("nameplate4",100),0,"secret damage: nothing yet")
+end))
+test("deep_wounds_saved_size_does_not_block",Isolated(function()
+    DeepWoundsRank2()
+    local Dots,ns=Load({enabled=true,showDotPrediction=true,dotTicks={[12721]=500}})
+    Dots.SyncAuras("nameplate1",DW(100),100)
+    near(Dots.Remaining("nameplate1",100),40,"saved size not read")
+    eq(Dots.MatchTick("nameplate1",10,PHYSICAL,false,103),"match","weapon-sized tick")
+    eq(ns.db.dotTicks[12721],500,"saved size not overwritten")
+end))
+test("deep_wounds_refresh_and_tick_not_refresh",Isolated(function()
+    DeepWoundsRank2()
+    local Dots=Load()
+    Dots.SyncAuras("nameplate1",DW(100),100)
+    local dot=Dots.states.nameplate1.dots[DEEP_WOUNDS]
+    eq(Dots.MatchTick("nameplate1",10,PHYSICAL,false,103.2),"match","tick moves start")
+    eq(Dots.SyncAuras("nameplate1",DW(100.1),103.3),false,"same application re-read")
+    eq(Dots.states.nameplate1.dots[DEEP_WOUNDS],dot,"not restarted");eq(dot.landed,1,"landed kept")
+    eq(Dots.SyncAuras("nameplate1",DW(105),105),true,"crit refresh")
+    local new=Dots.states.nameplate1.dots[DEEP_WOUNDS]
+    eq(new~=dot,true,"restarted");eq(new.landed,0,"landed reset");eq(new.cast,105,"new application")
+    eq(new.normalTicks,1,"measured ticks kept");near(new.tickSum,10,"measured size kept")
+    near(Dots.Remaining("nameplate1",105),40,"full bleed again")
+    eq(Dots.SyncAuras("nameplate1",DW(true),105.5),false,"unknown time restarts nothing")
+    eq(Dots.states.nameplate1.dots[DEEP_WOUNDS],new,"and keeps the DoT")
+    eq(Dots.SyncAuras("nameplate2",DW(true),105.5),false,"unknown time creates nothing")
+    eq(Dots.states.nameplate2,nil,"no state")
+end))
+test("deep_wounds_first_seen_mid_bleed",Isolated(function()
+    DeepWoundsRank2()
+    local Dots=Load()
+    eq(Dots.SyncAuras("nameplate1",DW(100),107),true,"seen partway through")
+    eq(Dots.states.nameplate1.dots[DEEP_WOUNDS].landed,2,"two ticks already past")
+    near(Dots.Remaining("nameplate1",107),20,"two ticks left")
+    eq(Dots.SyncAuras("nameplate2",DW(100),113),false,"no ticks left");eq(Dots.states.nameplate2,nil,"not created")
+    -- Its last two ticks never match: dropped, and the same application doesn't bring it back.
+    near(Dots.Remaining("nameplate1",112.5),0,"two missed ticks");eq(Dots.states.nameplate1,nil,"dropped")
+    eq(Dots.SyncAuras("nameplate1",DW(100),112.6),false,"same application");eq(Dots.states.nameplate1,nil,"not recreated")
+    eq(Dots.SyncAuras("nameplate1",DW(100.2),112.7),false,"within the slack");eq(Dots.states.nameplate1,nil,"still not recreated")
+    eq(Dots.SyncAuras("nameplate1",DW(112.6),112.7),true,"newer application")
+    near(Dots.Remaining("nameplate1",112.7),40,"a fresh bleed")
+    Dots.SyncAuras("nameplate3",DW(100),101);near(Dots.Remaining("nameplate3",107),0,"two missed ticks")
+    eq(Dots.states.nameplate3,nil,"dropped")
+    Dots.Clear("nameplate3")
+    eq(Dots.SyncAuras("nameplate3",DW(100),107.1),true,"Clear forgets the application")
+end))
+test("deep_wounds_removed_or_expired",Isolated(function()
+    DeepWoundsRank2()
+    local Dots=Load()
+    Dots.SyncAuras("nameplate1",DW(100),100)
+    eq(Dots.SyncAuras("nameplate1",{},101),true,"debuff removed");eq(Dots.states.nameplate1,nil,"pruned")
+    near(Dots.Remaining("nameplate1",101),0,"nothing left")
+    Dots.SyncAuras("nameplate2",DW(200),200)
+    for t=203,212,3 do eq(Dots.MatchTick("nameplate2",10,PHYSICAL,false,t),"match","tick at "..t) end
+    near(Dots.Remaining("nameplate2",212),0,"all ticks landed")
+    Dots.Remaining("nameplate2",215.5);eq(Dots.states.nameplate2,nil,"expired and pruned")
+    eq(Dots.SyncAuras("nameplate2",DW(200),215.6),false,"a lingering debuff restarts nothing")
+end))
+test("deep_wounds_huHU_name",Isolated(function()
+    StubCreateFrame()
+    local list={{name="Mély sebek",spellId=99999,duration=12,expirationTime=112}}
+    C_UnitAuras={GetAuraDataByIndex=function(_,i) return list[i] end}
+    local Dots=Load()
+    eq(Dots.ReadAuras("nameplate1")[DEEP_WOUNDS],nil,"no localized name: not matched")
+    C_Spell={GetSpellName=function(id) if id==12721 then return "Mély sebek" end end}
+    local ns
+    Dots,ns=Load()
+    ns:Fire("MP_INIT")
+    near(Dots.ReadAuras("nameplate1")[DEEP_WOUNDS],100,"matched by the localized name")
+    -- The spell cache wasn't loaded at MP_INIT: a Warrior's UNIT_AURA reads the name again.
+    StubCreateFrame();C_Spell=nil
+    Dots,ns=Load();ns:Fire("MP_INIT")
+    eq(Dots.ReadAuras("nameplate1")[DEEP_WOUNDS],nil,"name not read yet")
+    C_Spell={GetSpellName=function(id) if id==12721 then return "Mély sebek" end end}
+    UnitClass=function() return "Harcos","WARRIOR" end;GetTime=function() return 100 end
+    ns.active.nameplate1={unit="nameplate1",dot=Bar()}
+    frames[1].script(frames[1],"UNIT_AURA","nameplate1")
+    eq(Dots.states.nameplate1 and Dots.states.nameplate1.dots[DEEP_WOUNDS]~=nil,true,"retried name starts it")
+    eq(#ns.errors,0,"handler errors: "..table.concat(ns.errors,"; "))
+end))
+test("deep_wounds_events_drive_the_marker",Isolated(function()
+    StubCreateFrame()
+    local now,auras,reads=100,{},{}
+    GetTime=function() return now end
+    UnitHealthMax=function() return 5000 end
+    UnitClass=function(unit) if unit=="player" then return "Harcos","WARRIOR",1 end end
+    DeepWoundsRank2()
+    C_UnitAuras={GetAuraDataByIndex=function(unit,i)
+        if i==1 then reads[unit]=(reads[unit] or 0)+1 end
+        return auras[unit] and auras[unit][i]
+    end}
+    local function Bleed(at) return {{name="Mély sebek",spellId=12721,duration=12,expirationTime=at+12}} end
+    local Dots,ns=Load()
+    ns:Fire("MP_INIT")
+    local script=frames[1].script
+    local function Fire(event,...) script(frames[1],event,...) end
+    local f={unit="nameplate1",dot=Bar()}
+    ns.active.nameplate1=f
+    auras.nameplate1=Bleed(100)
+    Fire("UNIT_AURA","nameplate1")
+    eq(f.dot.shown,true,"stateless UNIT_AURA shows the bleed");near(f.dot.value,40,"value")
+    now=103;Fire("UNIT_COMBAT","nameplate1","WOUND","",10,PHYSICAL)
+    near(f.dot.value,30,"first tick lowers it")
+    now=106;Fire("UNIT_COMBAT","nameplate1","WOUND","",10,PHYSICAL)
+    near(f.dot.value,20,"second tick")
+    now=107;auras.nameplate1=Bleed(107);Fire("UNIT_AURA","nameplate1")
+    near(f.dot.value,40,"crit refresh restarts it")
+    auras.nameplate1={};Fire("UNIT_AURA","nameplate1")
+    eq(f.dot.shown,false,"removed: hidden");eq(Dots.states.nameplate1,nil,"state cleared")
+    -- A plate shown mid-bleed: its first marker update reads the debuffs, once per attachment.
+    local f2={unit="nameplate2",dot=Bar()}
+    ns.active.nameplate2=f2;auras.nameplate2=Bleed(101)
+    ns.UpdateDotMarker(f2)
+    eq(f2.dot.shown,true,"picked up when shown");near(f2.dot.value,20,"two ticks already past")
+    for i=1,5 do now=now+0.1;ns.UpdateDotMarker(f2) end
+    eq(reads.nameplate2,1,"one read per attachment")
+    local f3={unit="nameplate3",dot=Bar()}
+    ns.active.nameplate3=f3;auras.nameplate3={}
+    for i=1,5 do now=now+0.1;ns.UpdateDotMarker(f3) end
+    eq(reads.nameplate3,1,"no bleed: still one read");eq(f3.dot.shown,false,"nothing shown")
+    Dots.Clear("nameplate3");ns.UpdateDotMarker(f3);eq(reads.nameplate3,2,"a new attachment reads again")
+    -- An incomplete first read is retried on the next ticker pass.
+    local f4={unit="nameplate4",dot=Bar()}
+    ns.active.nameplate4=f4;auras.nameplate4={SECRET}
+    ns.UpdateDotMarker(f4);eq(f4.dot.shown,false,"unreadable debuffs");eq(reads.nameplate4,1,"read once")
+    auras.nameplate4=Bleed(now);ns.UpdateDotMarker(f4)
+    eq(f4.dot.shown,true,"second read starts it");eq(reads.nameplate4,2,"read again")
+    ns.UpdateDotMarker(f4);eq(reads.nameplate4,2,"then no more reads")
+    eq(#ns.errors,0,"handler errors: "..table.concat(ns.errors,"; "))
+    -- Other classes keep the stateless gate.
+    StubCreateFrame();reads={}
+    UnitClass=function() return "Mágus","MAGE",8 end
+    Dots,ns=Load();ns:Fire("MP_INIT")
+    local m={unit="nameplate1",dot=Bar()}
+    ns.active.nameplate1=m;auras.nameplate1=Bleed(now)
+    frames[1].script(frames[1],"UNIT_AURA","nameplate1")
+    eq(Dots.states.nameplate1,nil,"a Mage's UNIT_AURA creates nothing")
+    ns.UpdateDotMarker(m);eq(reads.nameplate1,nil,"no read on the ticker");eq(m.dot.shown,false,"hidden")
+    eq(#ns.errors,0,"handler errors: "..table.concat(ns.errors,"; "))
+end))
+
 print(string.format("%d/%d passed",count-failures,count))
 if failures>0 then os.exit(1) end

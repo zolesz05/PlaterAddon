@@ -1,4 +1,4 @@
-Moteve Plates 0.2.5 – WoW Forever / Interface 16001
+Moteve Plates 0.2.6 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -65,12 +65,16 @@ DOT-ELŐREJELZÉS
   Az addon nem hasonlítja össze és nem számol a védett életerőértékekkel: a maximális életerőt és
   a becsült sebzést egy StatusBar kapja meg, a kirajzolást a kliens végzi. Combat logot nem olvas; a saját
   debuffjaidat csak azért nézi, hogy a DoT felkerült-e.
+  A Deep Wounds (Mély sebek) cast nélkül, a saját debuffod megjelenésétől számít bármelyik névtáblán;
+  egy újabb crit újraindítja, a debuff lekerülése vagy lejárta eldobja. Tickméretét a talentszintből és
+  a főkezes fegyver átlagsebzéséből becsli, majd a saját tickjeiből méri; ezt a méretet nem menti.
+  Ha a fegyversebzés vagy a talentszint nem olvasható, az első szoros ritmusú tick után jelenik meg.
   Követett DoT-ok: Warlock (Corruption, Curse/Bane of Agony, Immolate, Siphon Life), Priest (Shadow Word: Pain,
   Devouring Plague), Druid (Moonfire, Insect Swarm, Rake, Rip), Rogue (Rupture, Garrote), Hunter (Serpent Sting),
-  Mage (Fireball és Pyroblast DoT-része), Shaman (Flame Shock), Warrior (Rend).
+  Mage (Fireball és Pyroblast DoT-része), Shaman (Flame Shock), Warrior (Rend, Deep Wounds).
   Korlátok:
     Csak a saját DoT-jaidat követi, és csak a kijelölt célpontra küldött castokat (mouseover/focus nem).
-    Cast nélküli DoT-okat (Deep Wounds, Ignite, mérgek) és a mob gyógyulását nem számolja.
+    Cast nélküli DoT-okat (Ignite, mérgek) és a mob gyógyulását nem számolja.
     Ha a kliens nem adja meg a kombópontokat, a Rip és a Rupture a legkisebb kombópontszámmal számol.
     Más játékos összetéveszthető, azonos iskolájú sebzésénél a jelölő eltűnik, amíg a tickek újra egyértelműek.
     A jelölő csak a saját debuff megjelenése vagy az első tick után számol a DoT-tal, így a resistelt,
@@ -144,6 +148,10 @@ ELLENŐRZÉS
   0.2.5: az alapbeállítások tesztje: lua tools/test_defaults.lua (új telepítésnél Classic skin és
   bekapcsolt DoT-előrejelzés, a mentett Moteve skin és kikapcsolt előrejelzés megmarad, az érvénytelen
   mentett értékek helyére az új alapértékek kerülnek).
+  0.2.6: a DoT-teszt (lua tools/test_dots.lua) a Deep Wounds debuffból indulását, a fegyveralapú becslést
+  és a becslés nélküli szoros ablakot, a crit utáni újraindítást, a lekerülést és lejártát, a félúton
+  látott debuffot, a magyar nevű debuffot, a mentett tickméret mellőzését és a Warrior UNIT_AURA útját
+  is ellenőrzi.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK
