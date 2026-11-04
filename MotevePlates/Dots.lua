@@ -3,6 +3,7 @@
 -- read here except UnitHealthMax, which goes straight into the marker StatusBar: the client draws the result.
 -- A DoT only counts once it has provably landed: its first tick matched, or this cast's own debuff was seen.
 -- A seen debuff that disappears (dispel, removal) drops the DoT at once.
+-- Proc DoTs (aura=true, e.g. Deep Wounds) have no cast: the player's own debuff starts, refreshes and drops them.
 -- Tracking approach ported from swirllyman/DoesItDie (MIT, see LICENSE-DoesItDie.txt).
 local _,ns=...
 local Dots={}
@@ -20,6 +21,8 @@ local AURA_SLACK,AURA_CAP=0.5,255
 local MISS_ACTIONS={MISS=true,DODGE=true,PARRY=true,IMMUNE=true,RESIST=true,EVADE=true,DEFLECT=true,REFLECT=true}
 local AGONY={0.5,0.5,0.5,0.5,1,1,1,1,1.5,1.5,1.5,1.5}
 -- Rank spellIDs with their base durations (the last one repeats); finishers list durations per combo point.
+-- aura=true: started by its debuff (ids), never by a cast; class gates the stateless debuff reads and
+-- talents lists the talent ranks, highest first, for the weapon-based tick estimate.
 local SPELLS={
     {name="Corruption",school=SHADOW,interval=3,ids={172,6222,6223,7648,11671,11672,25311},durations={12,15,18}},
     {name="Curse of Agony",alias="Bane of Agony",school=SHADOW,interval=2,ids={980,1014,6217,11711,11712,11713},durations={24},shape=AGONY},
@@ -38,9 +41,17 @@ local SPELLS={
     {name="Pyroblast",school=FIRE,interval=3,ids={11366,12505,12522,12523,12524,12525,12526,18809},durations={12},travel=true},
     {name="Flame Shock",school=FIRE,interval=3,ids={8050,8052,8053,10447,10448,29228},durations={12}},
     {name="Rend",school=PHYSICAL,interval=3,ids={772,6546,6547,6548,11572,11573,11574},durations={9,12,15,18,21}},
+    {name="Deep Wounds",school=PHYSICAL,interval=3,ids={12721},durations={12},aura=true,class="WARRIOR",talents={12868,12850,12162}},
 }
+-- Deep Wounds bleeds rank x 20% of the average main-hand hit over its ticks.
+local AURA_RANK_SHARE=0.2
 local byID,byName={},{}
+local AURA_SPELLS,AURA_CLASSES={},{}
 for _,spell in ipairs(SPELLS) do
+    if spell.aura then
+        AURA_SPELLS[#AURA_SPELLS+1]=spell
+        AURA_CLASSES[spell.class]=true
+    end
     for rank,id in ipairs(spell.ids) do
         local durations=spell.durations
         byID[id]={spell=spell,duration=durations and (durations[rank] or durations[#durations])}
@@ -111,6 +122,9 @@ function Dots.FinisherTotal(spell,text,locale,cp)
 end
 
 local states,pending={},{}
+-- Session only: the debuff application time each proc DoT was last started from, and the tokens whose
+-- debuffs were read once since they were attached.
+local auraAt,scanned={},{}
 local learned
 Dots.states=states
 local function HasSchool(mask,school)
@@ -124,12 +138,16 @@ local function Weight(dot,k)
     local i=math.ceil(math.min(math.max(k,1),dot.n)/dot.n*#shape)
     return shape[math.max(1,math.min(i,#shape))]
 end
--- Average tick and its size tolerance: this cast's ticks, else a learned size, else the description.
+-- Average tick and its size tolerance: this cast's ticks, else a learned size, else the description
+-- (or, for a proc DoT, the rougher weapon estimate).
 local function TickSize(dot)
     if dot.normalTicks>0 then return dot.tickSum/dot.normalTicks,0.25,0.25 end
     local saved=dot.key and learned and ns.Number(learned[dot.key])
     if saved then return saved,0.3,0.3 end
-    if dot.base then return dot.base,0.3,2 end
+    if dot.base then
+        if dot.aura then return dot.base,0.5,0.5 end
+        return dot.base,0.3,2
+    end
 end
 local function InBand(dot,k,amount,critical)
     local size,below,above=TickSize(dot)
@@ -139,7 +157,7 @@ local function InBand(dot,k,amount,critical)
     return amount>=expected*(1-below)-1 and amount<=expected*(1+above)+1
 end
 local function Window(dot,k)
-    local early=dot.confirmed and WINDOW_ANCHORED or WINDOW
+    local early=(dot.confirmed or dot.anchored) and WINDOW_ANCHORED or WINDOW
     local late=early+((not dot.confirmed and dot.spell.travel) and TRAVEL or 0)
     return dot.start+k*dot.spell.interval,early,late
 end
@@ -222,7 +240,8 @@ function Dots.MatchTick(token,amount,school,critical,now)
     if best then
         local dot,k=best,bestK
         if k>dot.n then dot.n=k end
-        dot.looseTick=TickSize(dot)==nil
+        -- A proc DoT's size is known from this match on, so its later ambiguity checks use the band.
+        dot.looseTick=not dot.aura and TickSize(dot)==nil
         dot.landed,dot.missed,dot.confirmed=k,0,true
         dot.start=now-k*dot.spell.interval;dot.lastTick=now
         if not critical then
@@ -320,14 +339,65 @@ function Dots.ReadAuras(token)
         end
     end
 end
--- Applies one complete read of the own debuffs: a DoT whose debuff this cast (re)applied is proven, and a proven
--- DoT whose debuff is gone is dropped. Unreadable auras (nil) change nothing. Returns true when anything changed.
+-- Per-tick estimate of a proc DoT from its talent rank and the main-hand damage, or nil when unreadable.
+local function AuraBase(spell)
+    local talents,rank=spell.talents or {},nil
+    for i,id in ipairs(talents) do
+        if ns.Bool(ns.API(IsPlayerSpell,id))==true or ns.Bool(ns.API(IsSpellKnown,id))==true then
+            rank=#talents-i+1;break
+        end
+    end
+    if not rank then return nil end
+    local low,high=ns.API(UnitDamage,"player")
+    low,high=ns.Number(low),ns.Number(high)
+    if not low or not high or low+high<=0 then return nil end
+    local n=math.max(1,math.floor(spell.durations[1]/spell.interval+0.5))
+    return rank*AURA_RANK_SHARE*(low+high)/2/n
+end
+-- Starts proc DoTs from their own debuff: a new application (no DoT and not the one used last, or newer than
+-- the DoT's) makes a fresh, proven DoT, counting ticks already past. Unknown application times start nothing.
+local function StartFromAuras(token,present,now)
+    local changed=false
+    for _,spell in ipairs(AURA_SPELLS) do
+        local at=present[spell.name]
+        if type(at)=="number" then
+            local st=states[token]
+            local dot=st and st.dots[spell.name]
+            local used=auraAt[token] and auraAt[token][spell.name]
+            local fresh
+            if dot then fresh=at>dot.cast+AURA_SLACK else fresh=used==nil or at>used+AURA_SLACK end
+            if fresh then
+                auraAt[token]=auraAt[token] or {}
+                auraAt[token][spell.name]=at
+                local new=Dots.NewDot(spell.ids[1],nil,nil,nil,at)
+                new.key,new.aura,new.auraSeen=nil,true,true
+                new.landed=math.max(0,math.min(math.floor((now-at)/spell.interval),new.n))
+                if dot then new.normalTicks,new.tickSum=dot.normalTicks,dot.tickSum end
+                if new.landed<new.n then
+                    new.base=AuraBase(spell)
+                    -- No size at all: only a hit tight on the rhythm may be its first tick.
+                    new.anchored=not new.base and new.normalTicks==0 or nil
+                    st=st or {dots={}}
+                    states[token]=st
+                    st.dots[spell.name]=new
+                    changed=true
+                elseif dot then
+                    st.dots[spell.name]=nil;changed=true
+                end
+            end
+        end
+    end
+    return changed
+end
+-- Applies one complete read of the own debuffs: a DoT whose debuff this cast (re)applied is proven, a proc DoT
+-- starts from its debuff, and a proven DoT whose debuff is gone is dropped. Unreadable auras (nil) change
+-- nothing. Returns true when anything changed.
 function Dots.SyncAuras(token,present,now)
     if type(present)~="table" then return false end
     Dots.Advance(token,now)
+    local changed=StartFromAuras(token,present,now)
     local st=states[token]
-    if not st then return false end
-    local changed=false
+    if not st then return changed end
     for name,dot in pairs(st.dots) do
         local at=present[name]
         if at==nil then
@@ -349,6 +419,7 @@ local function Unproven(token)
 end
 function Dots.Clear(token)
     states[token]=nil
+    auraAt[token],scanned[token]=nil,nil
     for guid,cast in pairs(pending) do
         if cast.token==token then pending[guid]=nil end
     end
@@ -379,6 +450,29 @@ local function SpellText(spellID,...)
         if type(text)=="string" and text~="" then return text end
     end
 end
+local auraNamesRead,playerClass=false,nil
+-- Adds the client's (localized) debuff names of the proc DoTs to the name lookup, so another rank id with the
+-- same name still matches. The spell cache may not be loaded yet: true once any name was read.
+function Dots.InitAuraNames()
+    for _,spell in ipairs(AURA_SPELLS) do
+        for _,id in ipairs(spell.ids) do
+            local name=SpellText(id,C_Spell and C_Spell.GetSpellName,GetSpellInfo)
+            if name then
+                auraNamesRead=true
+                if byName[name]==nil then byName[name]=spell end
+            end
+        end
+    end
+    return auraNamesRead
+end
+-- Whether the player's class (locale-independent class file, cached once readable) has a proc DoT.
+local function AuraClass()
+    if not playerClass then
+        local _,file=ns.API(UnitClass,"player")
+        if not ns.Secret(file) and type(file)=="string" and file~="" then playerClass=file end
+    end
+    return playerClass~=nil and AURA_CLASSES[playerClass]==true
+end
 function ns.UpdateDotMarker(f)
     local bar=f.dot
     if not bar then return end
@@ -386,7 +480,13 @@ function ns.UpdateDotMarker(f)
     if ns.db and ns.db.enabled and ns.db.showDotPrediction and bar.reverseFill and f.unit then
         local now=Now()
         -- The plate ticker polls the debuffs while a DoT waits for proof, in case its UNIT_AURA was missed.
-        if Unproven(f.unit) then Dots.SyncAuras(f.unit,Dots.ReadAuras(f.unit),now) end
+        -- A class with proc DoTs reads them once per attached plate, which may have appeared mid-bleed.
+        local scan=not scanned[f.unit] and AuraClass()
+        if scan or Unproven(f.unit) then
+            local present=Dots.ReadAuras(f.unit)
+            if scan and type(present)=="table" then scanned[f.unit]=true end
+            Dots.SyncAuras(f.unit,present,now)
+        end
         remaining=Dots.Remaining(f.unit,now)
     end
     if remaining<=0 then bar:Hide();return end
@@ -412,7 +512,10 @@ function handlers.UNIT_SPELLCAST_SENT(unit,targetName,castGUID,spellID)
     end
     spellID=ns.Number(spellID)
     if not spellID or ns.Secret(castGUID) or type(castGUID)~="string" then return end
-    if not byID[spellID] and not byName[SpellText(spellID,C_Spell and C_Spell.GetSpellName,GetSpellInfo) or ""] then return end
+    local record=byID[spellID]
+    local spell=record and record.spell or byName[SpellText(spellID,C_Spell and C_Spell.GetSpellName,GetSpellInfo) or ""]
+    -- Proc DoTs start from their debuff only.
+    if not spell or spell.aura then return end
     local token=TargetToken()
     if not token then return end
     -- A cast sent at another named unit (mouseover or focus macros) isn't on the target's plate.
@@ -428,9 +531,10 @@ function handlers.UNIT_SPELLCAST_SUCCEEDED(unit,castGUID,spellID)
     pending[castGUID]=nil
     spellID=ns.Number(spellID)
     if not cast or not spellID or not ns.active[cast.token] then return end
+    if byID[spellID] and byID[spellID].spell.aura then return end
     if not byID[spellID] then
         local spell=byName[SpellText(spellID,C_Spell and C_Spell.GetSpellName,GetSpellInfo) or ""]
-        if not spell then return end
+        if not spell or spell.aura then return end
         byID[spellID]={spell=spell,duration=spell.durations and spell.durations[#spell.durations]}
     end
     local text=SpellText(spellID,C_Spell and C_Spell.GetSpellDescription,GetSpellDescription)
@@ -449,7 +553,12 @@ function handlers.UNIT_COMBAT(unit,action,flag,amount,school)
     if Dots.Combat(unit,action,type(flag)=="string" and flag or "",ns.Number(amount),school,Now()) then Refresh(unit) end
 end
 function handlers.UNIT_AURA(unit)
-    if ns.Secret(unit) or type(unit)~="string" or not ns.active[unit] or not states[unit] then return end
+    if ns.Secret(unit) or type(unit)~="string" or not ns.active[unit] then return end
+    -- A proc DoT has no state before its debuff, so its class reads every active plate's debuffs.
+    if not states[unit] then
+        if not AuraClass() then return end
+        if not auraNamesRead then Dots.InitAuraNames() end
+    end
     if Dots.SyncAuras(unit,Dots.ReadAuras(unit),Now()) then Refresh(unit) end
 end
 local EVENTS={"UNIT_SPELLCAST_SENT","UNIT_SPELLCAST_SUCCEEDED","UNIT_COMBAT","UNIT_AURA"}
@@ -477,6 +586,8 @@ function Dots.Sync()
     registered=false
     for token in pairs(states) do states[token]=nil end
     for guid in pairs(pending) do pending[guid]=nil end
+    for token in pairs(auraAt) do auraAt[token]=nil end
+    for token in pairs(scanned) do scanned[token]=nil end
     for _,f in pairs(ns.active or {}) do if f.dot then f.dot:Hide() end end
 end
-ns:On("MP_INIT",function() Dots.InitLearned();Dots.Sync() end)
+ns:On("MP_INIT",function() Dots.InitLearned();Dots.InitAuraNames();Dots.Sync() end)

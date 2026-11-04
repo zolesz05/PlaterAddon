@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.5**
+**Aktuális verzió: 0.2.6**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -70,12 +70,12 @@ Harcon kívül az ellenséges mobok sávja **piros**, a semleges, maguktól nem 
 
 A jelölő színe a kapcsoló melletti **DoT-szín** négyzetekkel választható. Az alapértelmezett **Skin szerint** (az „S” jelű négyzet) a skin saját színét használja: Minimal fehér, Classic lila, Moteve rózsaszín. Emellett fehér, lila, rózsaszín, zöld, sárga, türkiz és piros választható; a négyzet fölé víve az egeret megjelenik a szín neve. A zöld, a sárga és a piros világosabb az aggro-színezés árnyalatainál, így a jelölő a színezett sávon is elüt. A választás mentődik, azonnal látszik az élő névtáblákon és a skin-előnézeteken, az **Alapbeállítások** gomb pedig visszaállítja a Skin szerinti színt. Az átlátszóság nem állítható.
 
-Az addon a saját varázslataidból, a varázslatleírásokból (angol és magyar kliensen) és a `UNIT_COMBAT` sebzésekből becsül; az első tickek után a valódi tickméretet tanulja meg és menti. Az életerőt nem hasonlítja össze és nem számol vele: a maximális életerőt és a becsült sebzést egy StatusBar kapja meg, a kirajzolást a kliens végzi. Követett DoT-ok: Warlock (Corruption, Curse/Bane of Agony, Immolate, Siphon Life), Priest (Shadow Word: Pain, Devouring Plague), Druid (Moonfire, Insect Swarm, Rake, Rip), Rogue (Rupture, Garrote), Hunter (Serpent Sting), Mage (Fireball és Pyroblast DoT-része), Shaman (Flame Shock), Warrior (Rend).
+Az addon a saját varázslataidból, a varázslatleírásokból (angol és magyar kliensen) és a `UNIT_COMBAT` sebzésekből becsül; az első tickek után a valódi tickméretet tanulja meg és menti. Az életerőt nem hasonlítja össze és nem számol vele: a maximális életerőt és a becsült sebzést egy StatusBar kapja meg, a kirajzolást a kliens végzi. Követett DoT-ok: Warlock (Corruption, Curse/Bane of Agony, Immolate, Siphon Life), Priest (Shadow Word: Pain, Devouring Plague), Druid (Moonfire, Insect Swarm, Rake, Rip), Rogue (Rupture, Garrote), Hunter (Serpent Sting), Mage (Fireball és Pyroblast DoT-része), Shaman (Flame Shock), Warrior (Rend, Deep Wounds). A Deep Wounds cast nélkül, a saját debuffod megjelenésétől számít; tickméretét a talentszintből és a főkezes fegyver átlagsebzéséből becsli, és nem menti.
 
 Korlátok:
 
 - Csak a saját DoT-jaidat követi, és csak a kijelölt célpontra küldött varázslatokat; mouseover- és focus-castokat nem.
-- Cast nélküli DoT-okat (Deep Wounds, Ignite, mérgek) és a mob gyógyulását nem számolja.
+- Cast nélküli DoT-okat (Ignite, mérgek) és a mob gyógyulását nem számolja.
 - Ha a kliens nem adja meg a kombópontokat, a Rip és a Rupture a legkisebb kombópontszámmal számol, így a becslés alacsonyabb lehet.
 - Ha egy másik játékos ugyanolyan iskolájú sebzése összetéveszthető a tickjeiddel, a jelölő eltűnik, amíg a tickek újra egyértelműek. Csoportban ezért ritkábban látszik.
 - A jelölő csak akkor számol egy DoT-tal, ha az bizonyíthatóan felkerült: látszik a saját debuffja, vagy beérkezett az első tickje. A resistelt, missed vagy immune DoT így egy pillanatra sem jelenik meg. Ha a saját debuffokat a kliens védett adatként adja, a DoT az első ticktől látszik.
@@ -126,6 +126,8 @@ A 0.2.3-as verzióban a DoT-előrejelzés jelölőjének színe a `/mp` panelen 
 A 0.2.4-es verzióban a DoT-előrejelzés jelölője csak a ténylegesen felkerült DoT-okat mutatja: a saját debuff megjelenése vagy az első tick után. Resistnél a jelölő nem villan fel, a dispellelt DoT pedig azonnal kiesik. A `tools/test_dots.lua` helyi stubokkal ellenőrzi a megerősítetlen DoT rejtését, a saját debuffok beolvasását és a dispel utáni eldobást; élő kliensen még nem teszteltük.
 
 A 0.2.5-ös verzióban új telepítésnél a **Classic** az alapértelmezett kinézet, és a DoT-sebzés előrejelzése bekapcsolva indul. A meglévő telepítések mentett kinézete és DoT-előrejelzés kapcsolója nem változik; az új alapértékeket az **Alapbeállítások** gomb állítja be. A `tools/test_defaults.lua` helyi stubokkal ellenőrzi, hogy üres `MotevePlatesDB` esetén Classic kinézet és bekapcsolt előrejelzés jön létre, a mentett Moteve kinézet és kikapcsolt előrejelzés megmarad, az érvénytelen mentett értékek helyére pedig az új alapértékek kerülnek. Élő kliensen még nem teszteltük.
+
+A 0.2.6-os verzióban a Warrior Deep Wounds vérzése is bekerül a DoT-előrejelzés jelölőjébe. Cast nélkül, a saját debuffod megjelenésétől indul bármelyik névtáblán, egy újabb crit újraindítja, a debuff lekerülése vagy lejárta pedig eldobja. A tickméretet a talentszintből és a főkezes fegyver átlagsebzéséből becsli, utána a saját tickjeiből méri; ezt a méretet nem menti, mert a fegyverrel és a támadóerővel változik. Ha a becslés nem olvasható, a jelölő az első szoros ritmusú tick után jelenik meg. A `tools/test_dots.lua` helyi stubokkal ellenőrzi a debuffból indulást, mindkét méretágat, az újraindítást, a lekerülést és lejártát, a félúton látott debuffot, a magyar nevű debuffot és az eseménykezelést. Élő kliensen még nem teszteltük; a WoW Forever debuff-azonosítója (12721) sem ellenőrzött, ezért a kliens által adott debuffnév is egyezik.
 
 ## Hibajelentés
 
