@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.4**
+**Aktuális verzió: 0.2.5**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -32,7 +32,7 @@ A mappanevet tartsd meg; ne kerüljön még egy almappa a `MotevePlates.toc` és
 - Három azonnal váltható névtáblakinézet: **Minimal, Classic, Moteve**.
 - Életerő és százalék, szint / elit jelzés, célpontkiemelés és raid marker. A szintszám a mob nehézségi színét kapja (szürke/zöld/sárga/narancs/piros), „??” mobnál piros.
 - Tank és DPS/healer szerepkör szerint működő aggrojelzés, külön kapcsolható szöveggel, százalékkal és sávszínezéssel. A szöveges jelzés új telepítésnél alapból ki van kapcsolva.
-- Bekapcsolható **DoT-sebzés előrejelzés**: az életerősáv végén jelölő mutatja, mennyit sebeznek még a saját DoT-jaid.
+- **DoT-sebzés előrejelzés** (új telepítésnél bekapcsolva, kikapcsolható): az életerősáv végén jelölő mutatja, mennyit sebeznek még a saját DoT-jaid.
 - Cast és channel sáv varázslatikonnal és idővel.
 - Saját debuffok és DoT-ok ikonnal, az ikonon belüli visszaszámlálóval és stackjelzéssel.
 - Alapból legfeljebb **8 debuff**; a darabszám **1–12 között állítható**, hat ikon után új sorral.
@@ -48,7 +48,7 @@ A mappanevet tartsd meg; ne kerüljön még egy almappa a `MotevePlates.toc` és
 | Classic | Bronzszegély, texturált életerősáv, klasszikus címbetű |
 | Moteve | Sötétkék felület, lila szegély és cián célpontjelzés |
 
-Az alapértelmezett a **Moteve**. A `/mp` panelen a kinézetek előnézeti kártyái kattinthatók, a választást megjegyzi.
+Új telepítésnél az alapértelmezett a **Classic**. Meglévő telepítésnél a korábban mentett kinézet marad meg; az **Alapbeállítások** gomb Classicra áll vissza. A `/mp` panelen a kinézetek előnézeti kártyái kattinthatók, a választást megjegyzi.
 
 ## Aggrojelzés
 
@@ -66,7 +66,7 @@ Harcon kívül az ellenséges mobok sávja **piros**, a semleges, maguktól nem 
 
 ## DoT-előrejelzés
 
-Alapból kikapcsolva; a `/mp` panelen a **DoT-sebzés előrejelzése** kapcsolóval kapcsolható be. Bekapcsolva minden ellenséges névtábla életerősávján egy csíkos jelölő takarja azt a részt, amennyit a saját DoT-jaid még sebezni fognak. Ha az életerősáv vége a jelölőn belül van, a mob újabb varázslat nélkül is meghal. A jelölő a sáv bal szélénél levágódik, ha a DoT-ok többet sebeznének a hátralévő életerőnél.
+Új telepítésnél alapból **be van kapcsolva**; a `/mp` panelen a **DoT-sebzés előrejelzése** kapcsolóval kapcsolható ki. Meglévő telepítésnél a korábban mentett beállítás marad meg; az **Alapbeállítások** gomb ezt is visszakapcsolja. Bekapcsolva minden ellenséges névtábla életerősávján egy csíkos jelölő takarja azt a részt, amennyit a saját DoT-jaid még sebezni fognak. Ha az életerősáv vége a jelölőn belül van, a mob újabb varázslat nélkül is meghal. A jelölő a sáv bal szélénél levágódik, ha a DoT-ok többet sebeznének a hátralévő életerőnél.
 
 A jelölő színe a kapcsoló melletti **DoT-szín** négyzetekkel választható. Az alapértelmezett **Skin szerint** (az „S” jelű négyzet) a skin saját színét használja: Minimal fehér, Classic lila, Moteve rózsaszín. Emellett fehér, lila, rózsaszín, zöld, sárga, türkiz és piros választható; a négyzet fölé víve az egeret megjelenik a szín neve. A zöld, a sárga és a piros világosabb az aggro-színezés árnyalatainál, így a jelölő a színezett sávon is elüt. A választás mentődik, azonnal látszik az élő névtáblákon és a skin-előnézeteken, az **Alapbeállítások** gomb pedig visszaállítja a Skin szerinti színt. Az átlátszóság nem állítható.
 
@@ -125,6 +125,8 @@ A 0.2.3-as verzióban a DoT-előrejelzés jelölőjének színe a `/mp` panelen 
 
 A 0.2.4-es verzióban a DoT-előrejelzés jelölője csak a ténylegesen felkerült DoT-okat mutatja: a saját debuff megjelenése vagy az első tick után. Resistnél a jelölő nem villan fel, a dispellelt DoT pedig azonnal kiesik. A `tools/test_dots.lua` helyi stubokkal ellenőrzi a megerősítetlen DoT rejtését, a saját debuffok beolvasását és a dispel utáni eldobást; élő kliensen még nem teszteltük.
 
+A 0.2.5-ös verzióban új telepítésnél a **Classic** az alapértelmezett kinézet, és a DoT-sebzés előrejelzése bekapcsolva indul. A meglévő telepítések mentett kinézete és DoT-előrejelzés kapcsolója nem változik; az új alapértékeket az **Alapbeállítások** gomb állítja be. A `tools/test_defaults.lua` helyi stubokkal ellenőrzi, hogy üres `MotevePlatesDB` esetén Classic kinézet és bekapcsolt előrejelzés jön létre, a mentett Moteve kinézet és kikapcsolt előrejelzés megmarad, az érvénytelen mentett értékek helyére pedig az új alapértékek kerülnek. Élő kliensen még nem teszteltük.
+
 ## Hibajelentés
 
 Hibát az [Issues oldalon](https://github.com/zolesz05/PlaterAddon/issues) jelezhetsz. Add meg a kliens és az addon verzióját, a kiválasztott skint és szerepkört, valamint a reprodukálás lépéseit. A `/mp errors` és `/mp auras` kimenete, illetve egy képernyőkép segíthet.
@@ -139,13 +141,14 @@ A legfrissebb telepíthető csomag frissítése a repository gyökeréből:
 python tools/package_addon.py
 ```
 
-A DoT-logika, a szintszín, a debuff-idő és a DoT-szín tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
+A DoT-logika, a szintszín, a debuff-idő, a DoT-szín és az alapbeállítások tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
 
 ```sh
 lua tools/test_dots.lua
 lua tools/test_level_color.lua
 lua tools/test_aura_timer.lua
 lua tools/test_dot_color.lua
+lua tools/test_defaults.lua
 ```
 
 A csomagoló ellenőrzi a TOC bejegyzéseit és a ZIP tartalmát, lecseréli a `downloads/MotevePlates.zip` fájlt, és eltávolítja a korábbi verziószámos addoncsomagokat ebből a mappából. A forrást, a ZIP-et és a README-t együtt kell feltölteni.
