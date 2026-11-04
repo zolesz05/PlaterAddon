@@ -1,4 +1,4 @@
-Moteve Plates 0.2.4 – WoW Forever / Interface 16001
+Moteve Plates 0.2.5 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -16,7 +16,8 @@ BEÁLLÍTÁSOK
     Minimal: vékony, világos keret, sötét háttér, egyszerű betűk.
     Classic: bronzszegély, texturált sáv, klasszikus címbetű.
     Moteve: sötétkék alap, lila szegély, cián célpontjelzés és visszafogott fény.
-  Alapértelmezett skin: Moteve.
+  Alapértelmezett skin: Classic. Meglévő telepítésnél a korábban mentett skin marad meg;
+  az Alapbeállítások gomb Classicra áll vissza.
   Látótáv (yd): 5–100 yard között kérhető, 5 yardos lépésekben; a kliens saját korlátja érvényes.
   Alatta a játékból visszaolvasott nameplateMaxDistance érték látható, eltérés esetén jelzéssel.
   A szerver ennél rövidebb tényleges megjelenítési távolságot is előírhat.
@@ -51,7 +52,8 @@ AGGRO
   az addon AGGRO: ? jelzést mutat. A védett adatokból nem következtet találgatással biztonságos állapotra.
 
 DOT-ELŐREJELZÉS
-  Alapból kikapcsolva; a /mp panelen a "DoT-sebzés előrejelzése" kapcsolóval kapcsolható be.
+  Új telepítésnél alapból bekapcsolva; a /mp panelen a "DoT-sebzés előrejelzése" kapcsolóval kapcsolható ki.
+  Meglévő telepítésnél a korábban mentett beállítás marad meg; az Alapbeállítások gomb visszakapcsolja.
   Minden ellenséges névtábla életerősávján csíkos jelölő takarja azt a részt, amennyit a saját
   DoT-jaid még sebezni fognak. Ha az életerősáv vége a jelölőn belül van, a mob újabb cast nélkül is meghal.
   A jelölő a sáv bal szélénél levágódik, ha a DoT-ok többet sebeznének a hátralévő életerőnél.
@@ -139,6 +141,9 @@ ELLENŐRZÉS
   0.2.4: a DoT-teszt (lua tools/test_dots.lua) a megerősítetlen, resistelt DoT rejtését, a saját debuff
   beolvasását (spellId és név szerint, védett adatnál semmi), a dispel utáni azonnali eldobást és a
   UNIT_AURA regisztrálását is ellenőrzi.
+  0.2.5: az alapbeállítások tesztje: lua tools/test_defaults.lua (új telepítésnél Classic skin és
+  bekapcsolt DoT-előrejelzés, a mentett Moteve skin és kikapcsolt előrejelzés megmarad, az érvénytelen
+  mentett értékek helyére az új alapértékek kerülnek).
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK
