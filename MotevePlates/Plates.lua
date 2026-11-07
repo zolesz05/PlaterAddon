@@ -26,7 +26,7 @@ function ns.Detach(unit)
     NativeVisuals(f,false)
     ns.StopNativeAuras(f)
     f.questBadge:Hide();f.questRelevant=nil;f.questNextCheck=nil
-    f.unit=nil;f.cast:Hide();f.cast.icon:Hide();f.raid:Hide();f.dot:Hide()
+    f.unit=nil;f.cast:Hide();f.cast.icon:Hide();f.raid:Hide();f.dot:Hide();ns.ShowComboPoints(f,0)
     for _,a in ipairs(f.auras) do a:Hide() end
     f:Hide();ns.active[unit]=nil
 end
@@ -141,6 +141,7 @@ function ns.UpdatePlate(f,auras)
     f:Show();Health(f);ns.UpdateDotMarker(f);Metadata(f);Cast(f);ns.UpdateQuestMarker(f)
     local target=ns.Bool(ns.API(UnitIsUnit,unit,"target"))==true
     ns.TargetStyle(f,target,ns.Bool(ns.API(UnitExists,"target"))==true)
+    ns.UpdateComboPoints(f,target)
     local state,percent,baseState=ns.ReadThreat(unit)
     f.threatState=state
     local color=ns.db.colorThreat and state.color or baseState.color

@@ -7,7 +7,7 @@ floatingBackground:SetAllPoints();floatingBackground:SetColorTexture(0.035,0.04,
 ns.Options=P
 local scroll=CreateFrame("ScrollFrame",nil,P,"UIPanelScrollFrameTemplate")
 scroll:SetPoint("TOPLEFT",0,0);scroll:SetPoint("BOTTOMRIGHT",-28,0)
-local body=CreateFrame("Frame",nil,scroll);body:SetSize(620,765);scroll:SetScrollChild(body)
+local body=CreateFrame("Frame",nil,scroll);body:SetSize(620,800);scroll:SetScrollChild(body)
 local function Text(parent,x,y,text,size,color)
     local t=ns.Font(parent,size or 13,false);t:SetPoint("TOPLEFT",x,y);t:SetJustifyH("LEFT");t:SetText(text)
     if color then t:SetTextColor(color[1],color[2],color[3]) end
@@ -49,12 +49,15 @@ local definitions={
     {"healthText","Életerő értéke"},{"healthPercent","Életerő százaléka"},
     {"showLevel","Szint és elit jelzés"},{"dimOthers","Nem célzott ellenfelek halványítása"},
     {"showDotPrediction","DoT-sebzés előrejelzése"},{"showQuest","Küldetésmobok kiemelése"},
+    {"showComboPoints","Kombópontok a célponton"},
 }
 for i,definition in ipairs(definitions) do
     local key,label=definition[1],definition[2]
     local cb=CreateFrame("CheckButton",nil,body,"UICheckButtonTemplate")
     cb:SetSize(24,24)
+    -- The grid ends at y=-418, above the legend at y=-458; later switches sit below the reset button.
     if key=="showQuest" then cb:SetPoint("TOPLEFT",320,-734)
+    elseif key=="showComboPoints" then cb:SetPoint("TOPLEFT",320,-764)
     else cb:SetPoint("TOPLEFT",20+((i-1)%2)*300,-268-math.floor((i-1)/2)*30) end
     local stock=cb.Text or cb.text;if stock and stock.SetText then stock:SetText("") end
     local t=ns.Font(cb,12,false);t:SetPoint("LEFT",cb,"RIGHT",3,0);t:SetWidth(260);t:SetText(label);t:SetJustifyH("LEFT")
@@ -141,6 +144,7 @@ local function Demo(f,skin)
     f.threatText:SetText(ns.ThreatLabel(state,role));f.threatPct:SetText("100%")
     f.threatText:SetTextColor(state.color[1],state.color[2],state.color[3]);f.threatPct:SetTextColor(state.color[1],state.color[2],state.color[3])
     ns.PlaceThreatText(f,true,d)
+    ns.ShowComboPoints(f,d.showComboPoints and ns.ComboClass() and 3 or 0)
 end
 function ns.UpdateOptions()
     if not ns.db then return end
@@ -150,6 +154,7 @@ function ns.UpdateOptions()
         skinButtons[key]:SetBackdropBorderColor(c[1],c[2],c[3],1)
     end
     for key,cb in pairs(checks) do cb:SetChecked(ns.db[key]) end
+    checks.showComboPoints:SetShown(ns.ComboClass())
     roleButtons.auto.text:SetText("Auto: "..(ns.GetRole()=="tank" and "Tank" or "DPS/heal"))
     roleButtons.tank.text:SetText("Tank");roleButtons.dps.text:SetText("DPS / healer")
     for key,b in pairs(roleButtons) do
