@@ -1,4 +1,4 @@
-Moteve Plates 0.2.9 – WoW Forever / Interface 16001
+Moteve Plates 0.2.10 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -86,16 +86,21 @@ DOT-ELŐREJELZÉS
   Copyright (c) 2026 Joe Greive) megközelítésén alapul; licence: LICENSE-DoesItDie.txt.
 
 KOMBÓPONTOK
-  Rogue és Druid karakternél a kijelölt célpont névtábláján, a név sorában jobbra öt kis pötty mutatja
-  a megszerzett kombópontokat: a teli pötty a skin kiemelőszínét kapja, a halvány szabad helyet jelöl.
-  Csak a target tábláján és csak legalább 1 pontnál látszik; addig a név rövidebb helyet kap.
+  Rogue és Druid karakternél annak a mobnak a névtábláján, amelyiken a pontokat gyűjtötted, a név sorában
+  jobbra öt kis pötty mutatja a megszerzett kombópontokat: a teli pötty a skin kiemelőszínét kapja, a halvány
+  szabad helyet jelöl. Célpontváltáskor és célpont nélkül is a mobon maradnak. Egyszerre csak egy táblán
+  látszanak: ha egy másik célponton legalább 1 pontot szerzel, oda kerülnek, és minden más táblán 0-ra
+  állnak (a képernyőn kívüli tábla is 0-val jön vissza); a finisher törli őket.
+  Csak legalább 1 pontnál látszik; addig a név rövidebb helyet kap.
   Más kasztnál semmi nem változik.
   Új telepítésnél bekapcsolva; a /mp panel alján a "Kombópontok a célponton" kapcsolóval kapcsolható ki.
   A kapcsoló csak Rogue és Druid karakternél látszik. Meglévő telepítésnél a mentett érték marad;
   az Alapbeállítások gomb visszakapcsolja. Bekapcsolva az előnézeti kártyákon 3 pötty látszik.
   Druidnál a pontok csak macskaformában gyűlnek, ezért a pöttyök gyakorlatilag csak ott látszanak.
   Ha a kliens formából kilépve megtartja a pontokat, a pöttyök is maradnak, ahogy a játék célpontkeretén.
-  Forrás: GetComboPoints("player","target"), ha az nem olvasható, UnitPower("player",4).
+  Forrás: GetComboPoints("player","target"), a mobot az UnitGUID azonosítja. Ha az nem olvasható,
+  UnitPower("player",4); ez a játékosé, ezért ilyenkor csak a target tábláján látszik, és nem vált gazdát.
+  Olvashatatlan (védett vagy hiányzó) mobazonosítónál a pöttyök csak a target tábláján látszanak.
   Ha a kliens egyiket sem adja meg (védett vagy hiányzó érték), a pöttyök nem jelennek meg.
 
 TOVÁBBI KIJELZÉSEK
@@ -171,7 +176,7 @@ ELLENŐRZÉS
   is ellenőrzi.
   0.2.7: a kombópontok tesztje: lua tools/test_combo_points.lua (alapérték és mentett érték, Rogue/Druid
   kasztszűrés, GetComboPoints -> UnitPower sorrend, védett / hiányzó / hibás érték, 0–5 közé vágás,
-  teli és halvány pöttyök, elrejtés nem target táblán, 0 pontnál, kikapcsolva és más kasztnál,
+  teli és halvány pöttyök, elrejtés 0 pontnál, kikapcsolva és más kasztnál,
   a név szélessége, a skin kiemelőszíne és a /mp kapcsoló helye, láthatósága és mentése).
   0.2.8: a raid target marker tesztje: lua tools/test_raid_marker.lua (a jel saját kerete a debuffsorok
   fölött, a jelek 1–8 helye a textúrán, a jel váltása és törlése, védett, hiányzó vagy hibás sorszámnál
@@ -181,6 +186,11 @@ ELLENŐRZÉS
   (icon:<n>, none, native, unavailable:<kód>), a leválasztáskori törlését és a /mp raid kimenetét is
   ellenőrzi: szám, hiba, hiányzó és védett sorszám, célpont vagy névtábla nélkül; a védett érték soha
   nem lesz szöveg.
+  0.2.10: a kombópontok tesztje (lua tools/test_combo_points.lua) azt is ellenőrzi, hogy a pöttyök
+  célpontváltáskor és célpont nélkül a gazda mobon maradnak, új célponton szerzett ponttól oda kerülnek és
+  minden más tábla (a leválasztott, majd visszatérő régi gazda is) 0-ra áll, a finisher törli a gazdát,
+  a UnitPower tartalék nem vált gazdát, a védett vagy hiányzó UnitGUID rejtve marad, kikapcsolt beállításnál
+  és más kasztnál pedig nincs gazda.
   Csak helyi stubokkal ellenőrizve, élő kliensen még nem teszteltük.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
