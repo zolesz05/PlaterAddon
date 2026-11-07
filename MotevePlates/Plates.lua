@@ -5,8 +5,18 @@ local revision=0
 local function IsForbidden(frame)
     return frame.IsForbidden and ns.Bool(ns.API(frame.IsForbidden,frame))~=false
 end
+-- Puts a borrowed native RaidTargetFrame back where it was (anchors and ignore-parent-alpha flag) and forgets it.
+local function RestoreNativeRaid(f)
+    local rtf=f.nativeRaid
+    if not rtf then return end
+    pcall(rtf.ClearAllPoints,rtf)
+    for _,p in ipairs(f.nativeRaidPoints or {}) do pcall(rtf.SetPoint,rtf,p[1],p[2],p[3],p[4],p[5]) end
+    pcall(rtf.SetIgnoreParentAlpha,rtf,f.nativeRaidIgnore==true)
+    f.nativeRaid,f.nativeRaidPoints,f.nativeRaidIgnore=nil,nil,nil
+end
 local function NativeVisuals(f,hide)
     if not hide then
+        RestoreNativeRaid(f)
         if f.native then pcall(f.native.SetAlpha,f.native,f.nativeAlpha or 1) end
         f.native,f.nativeAlpha=nil,nil
         return true
@@ -114,6 +124,53 @@ function ns.UpdateAuras(f)
         a:Show()
     end
 end
+-- Lifts Blizzard's own marker out of the faded native UnitFrame (f.native) onto f.raidHolder. Its original anchors and
+-- ignore-parent-alpha flag are saved first; when they cannot be read safely the frame is left untouched.
+local function NativeRaidFallback(f)
+    local native=f.native
+    if not native then return false end
+    local ok,rtf=pcall(function() return native.RaidTargetFrame end)
+    if not ok or ns.Secret(rtf) or type(rtf)~="table" or IsForbidden(rtf) then return false end
+    if type(rtf.SetIgnoreParentAlpha)~="function" then return false end
+    if f.nativeRaid~=rtf then
+        RestoreNativeRaid(f)
+        local count=ns.Number(ns.API(rtf.GetNumPoints,rtf))
+        if not count then return false end
+        local points={}
+        for i=1,count do
+            local point={pcall(rtf.GetPoint,rtf,i)}
+            if not point[1] then return false end
+            for j=2,6 do if ns.Secret(point[j]) then return false end end
+            points[i]={point[2],point[3],point[4],point[5],point[6]}
+        end
+        local ignore
+        if type(rtf.IsIgnoringParentAlpha)=="function" then
+            local okIgnore,value=pcall(rtf.IsIgnoringParentAlpha,rtf)
+            if not okIgnore or ns.Secret(value) then return false end
+            ignore=value==true
+        end
+        f.nativeRaid,f.nativeRaidPoints,f.nativeRaidIgnore=rtf,points,ignore
+    end
+    pcall(rtf.SetIgnoreParentAlpha,rtf,true)
+    pcall(rtf.ClearAllPoints,rtf)
+    if not pcall(rtf.SetPoint,rtf,"CENTER",f.raidHolder,"CENTER",0,0) then RestoreNativeRaid(f);return false end
+    return true
+end
+-- A plain index 1-8 shows the addon's icon; any other plain number means no marker. A secret, nil or erroring index
+-- falls back to Blizzard's marker. The raw index is only ever handed to ns.Number.
+function ns.UpdateRaidMarker(f)
+    local raid=ns.Number(ns.API(GetRaidTargetIndex,f.unit))
+    if not raid then f.raid:Hide();NativeRaidFallback(f);return end
+    RestoreNativeRaid(f)
+    if raid>=1 and raid<=8 then
+        if SetRaidTargetIconTexture then SetRaidTargetIconTexture(f.raid,raid)
+        else
+            local col,row=(raid-1)%4,math.floor((raid-1)/4)
+            f.raid:SetTexCoord(col/4,(col+1)/4,row/2,(row+1)/2)
+        end
+        f.raid:Show()
+    else f.raid:Hide() end
+end
 local function Metadata(f)
     local name=ns.API(UnitName,f.unit)
     if ns.Secret(name) or name~=nil then SetRawText(f.name,name) else f.name:SetText("?") end
@@ -122,15 +179,7 @@ local function Metadata(f)
     local elite=not ns.Secret(classification) and (classification=="elite" or classification=="rareelite" or classification=="worldboss")
     f.level:SetText(level and level>0 and (tostring(level)..(elite and "+" or "")) or "??")
     f.level:SetTextColor(ns.LevelColor(level,f.skin))
-    local raid=ns.Number(ns.API(GetRaidTargetIndex,f.unit))
-    if raid and raid>=1 and raid<=8 then
-        if SetRaidTargetIconTexture then SetRaidTargetIconTexture(f.raid,raid)
-        else
-            local col,row=(raid-1)%4,math.floor((raid-1)/4)
-            f.raid:SetTexCoord(col/4,(col+1)/4,row/2,(row+1)/2)
-        end
-        f.raid:Show()
-    else f.raid:Hide() end
+    ns.UpdateRaidMarker(f)
 end
 function ns.UpdatePlate(f,auras)
     local unit=f.unit

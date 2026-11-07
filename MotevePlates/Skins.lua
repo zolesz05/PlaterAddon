@@ -91,8 +91,10 @@ function ns.CreatePlate(parent)
     f.cast.icon=f:CreateTexture(nil,"ARTWORK");f.cast.icon:SetTexCoord(0.08,0.92,0.08,0.92)
     f.threatText=ns.Font(f,10,true);f.threatText:SetJustifyH("LEFT")
     f.threatPct=ns.Font(f,10,true);f.threatPct:SetJustifyH("RIGHT")
-    f.raid=f:CreateTexture(nil,"OVERLAY");f.raid:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons");f.raid:SetSize(18,18)
-    f.raid:SetPoint("BOTTOM",f,"TOP",0,54)
+    -- Raid marker: its own frame above every aura layer (native AuraContainer at +5) and above the top aura row (ends at +80).
+    f.raidHolder=CreateFrame("Frame",nil,f);f.raidHolder:EnableMouse(false);f.raidHolder:SetSize(18,18)
+    f.raidHolder:SetFrameLevel(f:GetFrameLevel()+10);f.raidHolder:SetPoint("BOTTOM",f,"TOP",0,84)
+    f.raid=f.raidHolder:CreateTexture(nil,"OVERLAY");f.raid:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons");f.raid:SetAllPoints()
     f.auras={}
     for i=1,12 do
         local a=CreateFrame("Frame",nil,f,"BackdropTemplate");a:SetSize(19,19);a:EnableMouse(false)

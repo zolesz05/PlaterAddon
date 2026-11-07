@@ -1,4 +1,4 @@
-Moteve Plates 0.2.6 – WoW Forever / Interface 16001
+Moteve Plates 0.2.7 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -107,7 +107,9 @@ TOVÁBBI KIJELZÉSEK
   Az aurák a saját névtáblához kapcsolódnak, a gyári UnitFrame elrejtése nem rejti el őket.
   Régebbi kliensen, ha nincs AuraContainer támogatás, a korábbi aura-lekérés marad tartalékmegoldásként;
   ott is csak az ikonon belüli visszaszámláló mutatja az időt.
-  Raid target marker, a nem célzott ellenfelek halványítása.
+  Raid target marker a debuffsorok fölött, saját keretben, így a debuff ikonok nem takarják el.
+  Ha a kliens nem adja ki a jel sorszámát, a Blizzard saját jelét emeli ugyanoda.
+  A nem célzott ellenfelek halványítása.
   Méretarány 65–150%, szélesség 140–260, sávmagasság 12–26, függőleges eltolás -30…40.
   A baráti és a saját névtáblákat az addon megtartja. Ellenséges játékosnál nincs NPC-aggroszínezés.
   A kliens által tiltott névtáblákhoz nem nyúl. A saját grafika átengedi az egérkattintást a natív névtáblának.
@@ -152,6 +154,10 @@ ELLENŐRZÉS
   és a becslés nélküli szoros ablakot, a crit utáni újraindítást, a lekerülést és lejártát, a félúton
   látott debuffot, a magyar nevű debuffot, a mentett tickméret mellőzését és a Warrior UNIT_AURA útját
   is ellenőrzi.
+  0.2.7: a raid target marker tesztje: lua tools/test_raid_marker.lua (a jel saját kerete a debuffsorok
+  fölött, a jelek 1–8 helye a textúrán, a jel váltása és törlése, védett, hiányzó vagy hibás sorszámnál
+  a Blizzard-jel átemelése és visszaadása, leválasztáskor és újrahasznosított névtáblánál is).
+  Csak helyi stubokkal ellenőrizve, élő kliensen még nem teszteltük.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK

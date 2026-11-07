@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.6**
+**Aktuális verzió: 0.2.7**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -129,6 +129,8 @@ A 0.2.5-ös verzióban új telepítésnél a **Classic** az alapértelmezett kin
 
 A 0.2.6-os verzióban a Warrior Deep Wounds vérzése is bekerül a DoT-előrejelzés jelölőjébe. Cast nélkül, a saját debuffod megjelenésétől indul bármelyik névtáblán, egy újabb crit újraindítja, a debuff lekerülése vagy lejárta pedig eldobja. A tickméretet a talentszintből és a főkezes fegyver átlagsebzéséből becsli, utána a saját tickjeiből méri; ezt a méretet nem menti, mert a fegyverrel és a támadóerővel változik. Ha a becslés nem olvasható, a jelölő az első szoros ritmusú tick után jelenik meg. A `tools/test_dots.lua` helyi stubokkal ellenőrzi a debuffból indulást, mindkét méretágat, az újraindítást, a lekerülést és lejártát, a félúton látott debuffot, a magyar nevű debuffot és az eseménykezelést. Élő kliensen még nem teszteltük; a WoW Forever debuff-azonosítója (12721) sem ellenőrzött, ezért a kliens által adott debuffnév is egyezik.
 
+A 0.2.7-es verzióban a raid target marker (koponya, X és a többi) újra látszik mindhárom kinézeten. A jel saját keretben, a második debuffsor fölött jelenik meg, így a debuff ikonok nem takarják el. Ha a kliens nem adja ki a jel sorszámát (védett vagy hiányzó érték), az addon a Blizzard saját jelét emeli ki az elrejtett gyári névtáblából ugyanoda, és a névtábla elengedésekor visszateszi a helyére. A `tools/test_raid_marker.lua` helyi stubokkal ellenőrzi a jel keretének helyét, mind a nyolc jelet, a jel váltását és törlését, a Blizzard-jel átemelését és visszaadását, valamint a hiányzó vagy tiltott gyári keret esetét. Élő kliensen még nem teszteltük.
+
 ## Hibajelentés
 
 Hibát az [Issues oldalon](https://github.com/zolesz05/PlaterAddon/issues) jelezhetsz. Add meg a kliens és az addon verzióját, a kiválasztott skint és szerepkört, valamint a reprodukálás lépéseit. A `/mp errors` és `/mp auras` kimenete, illetve egy képernyőkép segíthet.
@@ -143,7 +145,7 @@ A legfrissebb telepíthető csomag frissítése a repository gyökeréből:
 python tools/package_addon.py
 ```
 
-A DoT-logika, a szintszín, a debuff-idő, a DoT-szín és az alapbeállítások tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
+A DoT-logika, a szintszín, a debuff-idő, a DoT-szín, az alapbeállítások és a raid target marker tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
 
 ```sh
 lua tools/test_dots.lua
@@ -151,6 +153,7 @@ lua tools/test_level_color.lua
 lua tools/test_aura_timer.lua
 lua tools/test_dot_color.lua
 lua tools/test_defaults.lua
+lua tools/test_raid_marker.lua
 ```
 
 A csomagoló ellenőrzi a TOC bejegyzéseit és a ZIP tartalmát, lecseréli a `downloads/MotevePlates.zip` fájlt, és eltávolítja a korábbi verziószámos addoncsomagokat ebből a mappából. A forrást, a ZIP-et és a README-t együtt kell feltölteni.
