@@ -15,7 +15,8 @@ local function RestoreNativeRaid(f)
         for _,p in ipairs(f.nativeRaidPoints or {}) do pcall(rtf.SetPoint,rtf,p[1],p[2],p[3],p[4],p[5]) end
     end
     pcall(rtf.SetIgnoreParentAlpha,rtf,f.nativeRaidIgnore==true)
-    f.nativeRaid,f.nativeRaidPoints,f.nativeRaidIgnore,f.nativeRaidAlphaOnly=nil,nil,nil,nil
+    if f.nativeRaidLevel then pcall(rtf.SetFrameLevel,rtf,f.nativeRaidLevel) end
+    f.nativeRaid,f.nativeRaidPoints,f.nativeRaidIgnore,f.nativeRaidAlphaOnly,f.nativeRaidLevel=nil,nil,nil,nil,nil
 end
 local function NativeVisuals(f,hide)
     if not hide then
@@ -131,6 +132,8 @@ end
 -- ignore-parent-alpha flag are saved first. When the anchors cannot be read (secret or erroring GetNumPoints/GetPoint, as
 -- on the live client's protected plates) the frame is not moved: in alpha-only mode it only ignores the faded parent's
 -- alpha, so Blizzard's marker stays visible where Blizzard put it; an unreadable original flag is then restored as false.
+-- In that mode the marker is also raised one frame level above f.raidHolder, so the addon's own plate (which sits over the
+-- faded native plate) does not cover it; its original level is saved and put back, and is left alone when unreadable.
 -- Returns the path taken, "native" or "native-alpha", or "unavailable:<reason>" for the exit that stopped it (/mp raid).
 local function ReadPoints(rtf)
     local count=ns.Number(ns.API(rtf.GetNumPoints,rtf))
@@ -163,10 +166,18 @@ local function NativeRaidFallback(f)
             end
             ignore=value==true
         end
+        local level
+        if not points and type(rtf.SetFrameLevel)=="function" then level=ns.Number(ns.API(rtf.GetFrameLevel,rtf)) end
         f.nativeRaid,f.nativeRaidPoints,f.nativeRaidIgnore,f.nativeRaidAlphaOnly=rtf,points,ignore,not points or nil
+        f.nativeRaidLevel=level
     end
     pcall(rtf.SetIgnoreParentAlpha,rtf,true)
-    if f.nativeRaidAlphaOnly then return "native-alpha" end
+    if f.nativeRaidAlphaOnly then
+        local holder=f.raidHolder
+        local above=f.nativeRaidLevel and ns.Number(ns.API(holder.GetFrameLevel,holder))
+        if above then pcall(rtf.SetFrameLevel,rtf,above+1) end
+        return "native-alpha"
+    end
     pcall(rtf.ClearAllPoints,rtf)
     -- Two corners, not one CENTER point: a frame sized only by its original anchors would shrink to 0x0 on a single point.
     if not pcall(rtf.SetPoint,rtf,"TOPLEFT",f.raidHolder,"TOPLEFT",0,0)

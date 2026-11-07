@@ -129,7 +129,10 @@ TOVÁBBI KIJELZÉSEK
   ikonok és a többi névtábla nem takarják el. Ha a kliens védett sorszámot ad, az addon a jel saját
   textúráját a sorszám kiolvasása nélkül választja ki; ha ez nem sikerül, a Blizzard saját jelét is
   ugyanoda emeli. Ha a kliens a Blizzard-jel horgonyait sem adja ki, a Blizzard-jelet nem mozgatja,
-  csak láthatóvá teszi az eredeti helyén (csak alfa mód). Ha a jel nem látszik, a /mp raid kiírja, miért.
+  csak láthatóvá teszi az eredeti helyén (csak alfa mód), és egy keretszinttel a saját jelkeret fölé emeli,
+  hogy a saját névtábla ne takarja. Ilyenkor a jel nem a saját jelkeretben, hanem a Blizzard által adott
+  helyen áll, így más névtábla vagy más réteg (strata) eltakarhatja. Ha a jel nem látszik, a /mp raid
+  kiírja, miért (raidStatus: native-alpha jelzi ezt a módot).
   A nem célzott ellenfelek halványítása.
   Méretarány 65–150%, szélesség 140–260, sávmagasság 12–26, függőleges eltolás -30…40.
   A baráti és a saját névtáblákat az addon megtartja. Ellenséges játékosnál nincs NPC-aggroszínezés.
@@ -202,7 +205,8 @@ ELLENŐRZÉS
   Blizzard-jel csak alfa módját (native-alpha, icon:secret+native-alpha) is ellenőrzi: védett vagy hibás
   GetNumPoints/GetPoint mellett egyetlen SetIgnoreParentAlpha(true) írás, ClearAllPoints/SetPoint nélkül;
   a jelző visszaállítása leválasztáskor, sima sorszámnál és újrahasznosított névtáblánál (kiolvashatatlan
-  eredeti jelzőnél false), valamint a /mp raid „Átemelt Blizzard-jel: csak alfa” sora.
+  eredeti jelzőnél false), a jel keretszintjének a jelkeret fölé emelését és visszaállítását (kiolvashatatlan
+  szintnél érintetlenül hagyva), valamint a /mp raid „Átemelt Blizzard-jel: csak alfa” sora.
   Csak helyi stubokkal ellenőrizve, élő kliensen még nem teszteltük.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 

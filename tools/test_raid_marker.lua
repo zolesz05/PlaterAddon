@@ -126,8 +126,10 @@ assert(loadfile(root.."/MotevePlates/Plates.lua"))("MotevePlates",ns)
 -- A fake Blizzard RaidTargetFrame: real anchors and ignore flag, every method call logged in rtf.log.
 local function NativeRaid(opts)
     opts=opts or {}
-    local rtf={log={},points={{"RIGHT",opts.anchor or "HealthBar","LEFT",-6,0}},ignore=false}
+    local rtf={log={},points={{"RIGHT",opts.anchor or "HealthBar","LEFT",-6,0}},ignore=false,level=3}
     local function log(name,...) rtf.log[#rtf.log+1]={name,...} end
+    function rtf:GetFrameLevel() log("GetFrameLevel");if opts.secretLevel then return SECRET end;return self.level end
+    function rtf:SetFrameLevel(v) log("SetFrameLevel",v);self.level=v end
     function rtf:GetNumPoints() log("GetNumPoints");if opts.badCount then return SECRET end;return #self.points end
     function rtf:GetPoint(i)
         log("GetPoint",i)
@@ -205,6 +207,7 @@ local function ExpectOriginal(rtf,what)
     eq(p[1],"RIGHT",what.." point");eq(p[2],"HealthBar",what.." relative");eq(p[3],"LEFT",what.." relative point")
     eq(p[4],-6,what.." x");eq(p[5],0,what.." y")
     eq(rtf.ignore,false,what.." ignore flag")
+    eq(rtf.level,3,what.." frame level")
 end
 
 test("index_1_to_8_texcoords",function()
@@ -405,6 +408,9 @@ local function ExpectAlphaOnly(f,rtf,what)
     eq(rtf.ignore,true,what.." ignores parent alpha")
     eq(Logged(rtf,"ClearAllPoints"),0,what.." never cleared");eq(Logged(rtf,"SetPoint"),0,what.." never anchored")
     eq(rtf.points[1][2],"HealthBar",what.." stays where Blizzard put it")
+    -- Raised above the holder (and so above the addon's plate that covers the faded native plate).
+    eq(rtf.level,f.raidHolder:GetFrameLevel()+1,what.." raised above the holder")
+    eq(f.nativeRaidLevel,3,what.." original level saved")
 end
 
 test("unreadable_anchors_borrow_alpha_only",function()
@@ -418,7 +424,9 @@ test("unreadable_anchors_borrow_alpha_only",function()
         Index(SECRET);Update(f)
         ExpectAlphaOnly(f,rtf,what)
         eq(Writes(rtf),1,what.." one write");eq(Logged(rtf,"SetIgnoreParentAlpha"),1,what.." one flag write")
-        eq(rtf.log[#rtf.log][2],true,what.." flag set to true")
+        eq(rtf.log[#rtf.log-1][1],"SetIgnoreParentAlpha",what.." flag written before the level")
+        eq(rtf.log[#rtf.log-1][2],true,what.." flag set to true")
+        eq(rtf.log[#rtf.log][1],"SetFrameLevel",what.." level raised last");eq(Logged(rtf,"SetFrameLevel"),1,what.." one level write")
         eq(f.raid.shown,false,what.." own icon hidden")
         eq(f.nativeRaidIgnore,false,what.." original flag saved")
         -- The next tick keeps the mode without reading or moving anything.
@@ -486,6 +494,23 @@ test("alpha_only_recycled_plate_restores",function()
     ExpectBorrowed(g,rtf2,"recycled plate's new marker")
     eq(g.nativeRaidAlphaOnly,nil,"new marker fully borrowed");eq(g.raidStatus,"native","new marker status")
     ns.db=nil
+end)
+
+test("alpha_only_unreadable_level_left_alone",function()
+    local rtf=NativeRaid({badCount=true,secretLevel=true})
+    local f=Plate(UnitFrame(rtf))
+    Index(SECRET);Update(f)
+    eq(f.raidStatus,"native-alpha","status");eq(rtf.ignore,true,"ignores parent alpha")
+    eq(f.nativeRaidLevel,nil,"no level saved");eq(Logged(rtf,"SetFrameLevel"),0,"level never set")
+    Update(f);eq(Logged(rtf,"SetFrameLevel"),0,"next tick level never set")
+    Index(0);Update(f)
+    eq(rtf.ignore,false,"flag restored");eq(rtf.level,3,"level untouched");eq(Logged(rtf,"SetFrameLevel"),0,"restore never set level")
+    -- Readable anchors (full borrow) never touch the level.
+    local full=NativeRaid()
+    local g=Plate(UnitFrame(full))
+    Index(SECRET);Update(g);eq(g.raidStatus,"native","full borrow status")
+    eq(Logged(full,"SetFrameLevel"),0,"full borrow keeps its level");eq(g.nativeRaidLevel,nil,"full borrow saves no level")
+    Index(0);Update(g);eq(Logged(full,"SetFrameLevel"),0,"full borrow restore keeps its level")
 end)
 
 test("secret_icon_unconfirmed_with_alpha_only",function()
