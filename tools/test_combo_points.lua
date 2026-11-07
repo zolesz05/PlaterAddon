@@ -115,7 +115,7 @@ end
 test("toc_lists_combo_between_dots_and_plates",function()
     local file=assert(io.open(root.."/MotevePlates/MotevePlates.toc","r"))
     local text=file:read("*a");file:close()
-    eq(text:match("## Version:%s*(%S+)"),"0.2.8","version")
+    eq(text:match("## Version:%s*(%S+)"),"0.2.9","version")
     if not text:find("\nDots.lua\r?\nCombo.lua\r?\nPlates.lua\r?\n") then error("Combo.lua not between Dots.lua and Plates.lua") end
 end)
 

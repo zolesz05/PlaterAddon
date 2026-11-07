@@ -2,12 +2,15 @@
 --   lua tools/test_raid_marker.lua
 -- Part 1 loads Core.lua and Skins.lua against a stub CreateFrame whose frames record every method call and checks the
 -- marker's own frame. Part 2 loads Core.lua and Plates.lua against stubs (GetRaidTargetIndex, issecretvalue, a fake
--- native UnitFrame with its RaidTargetFrame) and drives ns.UpdateRaidMarker, ns.UpdatePlate and ns.Detach.
+-- native UnitFrame with its RaidTargetFrame) and drives ns.UpdateRaidMarker, ns.UpdatePlate, ns.Detach and /mp raid.
 -- Exits non-zero on any failure.
 local root=(arg and arg[0] or ""):match("^(.-)[/\\]?tools[/\\][^/\\]+$") or "."
 if root=="" then root="." end
 local unpack=unpack or table.unpack
 local SECRET=setmetatable({},{__tostring=function() return "<secret>" end})
+-- A secret that fails loudly on any use the client forbids: text conversion, concatenation, comparison, length.
+local function Forbidden() error("secret value used",2) end
+local SECRET_THROW=setmetatable({},{__tostring=Forbidden,__concat=Forbidden,__eq=Forbidden,__lt=Forbidden,__le=Forbidden,__len=Forbidden})
 local failures,count=0,0
 
 -- A frame stub: any method (a capitalised key) is a no-op that records its call in frame.calls[method];
@@ -29,10 +32,11 @@ end
 function frameMethods.CreateTexture(self) return NewFrame("Texture",self) end
 function frameMethods.CreateFontString(self) return NewFrame("FontString",self) end
 function frameMethods.GetFrameLevel() return 1 end
+function frameMethods.IsShown(self) return self.shown end
 function frameMethods.GetStatusBarTexture(self) return NewFrame("Texture",self) end
 function CreateFrame(kind,name,parent,template) return NewFrame(kind,parent,template) end
 SlashCmdList={}
-issecretvalue=function(v) return v==SECRET end
+issecretvalue=function(v) return rawequal(v,SECRET) or rawequal(v,SECRET_THROW) end
 
 local function test(name,fn)
     count=count+1
@@ -69,18 +73,33 @@ do
         if type(level)~="number" or level<=f:GetFrameLevel()+5 then error("holder level "..tostring(level).." not above the aura container (+5)") end
         eq(level,11,"holder level with stub level 1")
         local point,rel,relPoint,x,y=Last(holder,"SetPoint")
-        eq(point,"BOTTOM","holder point");eq(rel,f,"holder relative frame");eq(relPoint,"TOP","holder relative point")
-        eq(x,0,"holder x")
-        if type(y)~="number" or y<80 then error("holder y "..tostring(y).." inside the aura rows (up to +80)") end
-        eq(y,84,"holder y")
+        eq(point,"RIGHT","holder point");eq(rel,f,"holder relative frame");eq(relPoint,"LEFT","holder relative point")
+        eq(x,-18,"holder x");eq(y,0,"holder y")
         eq(f.raid.kind,"Texture","f.raid is a texture")
         eq(f.raid.parent,holder,"f.raid lives on the holder")
         eq(Calls(f.raid,"SetAllPoints"),1,"f.raid fills the holder")
         eq(Last(f.raid,"SetTexture"),"Interface\\TargetingFrame\\UI-RaidTargetingIcons","marker texture")
+        -- Horizontal clearance, in plate coordinates (the plate's left edge is x=0). The holder spans x -36..-18.
+        local right=x
+        -- Target arrow: its right edge sits at the plate's left edge plus its offset; leave room for the glyph overhang.
+        local apoint,arel,arelPoint,ax=Last(f.targetLeft,"SetPoint")
+        eq(apoint,"RIGHT","arrow point");eq(arel,f,"arrow relative");eq(arelPoint,"LEFT","arrow relative point")
+        if right>ax-8 then error("holder right edge "..right.." within 8 px of the target arrow at "..ax) end
+        -- Quest badge: right edge 3 px left of the name, which starts at the plate's left edge.
+        local npoint,nrel,nrelPoint,nx=Last(f.name,"SetPoint")
+        eq(npoint,"BOTTOMLEFT","name point");eq(nrel,f,"name relative");eq(nrelPoint,"TOPLEFT","name relative point")
+        if right>nx then error("holder reaches the name row at "..nx) end
+        local _,brel,_,bx=Last(f.questBadge,"SetPoint")
+        eq(brel,f.name,"badge beside the name")
+        local bw=Last(f.questBadge,"SetSize")
+        local badgeLeft=nx+bx-bw
+        eq(badgeLeft,-15,"badge left edge")
+        if right>badgeLeft then error("holder right edge "..right.." overlaps the quest badge from "..badgeLeft) end
         for i,a in ipairs(f.auras) do
             if a==holder then error("holder is aura "..i) end
-            local _,_,_,_,ay=Last(a,"SetPoint")
-            if ay+19>y then error("aura "..i.." top "..(ay+19).." reaches the marker at "..y) end
+            local _,arel2,_,aurax=Last(a,"SetPoint")
+            eq(arel2,f,"aura "..i.." relative")
+            if right>aurax then error("aura "..i.." left edge "..aurax.." reaches the marker at "..right) end
         end
     end)
 end
@@ -99,7 +118,7 @@ local function NativeRaid(opts)
     opts=opts or {}
     local rtf={log={},points={{"RIGHT",opts.anchor or "HealthBar","LEFT",-6,0}},ignore=false}
     local function log(name,...) rtf.log[#rtf.log+1]={name,...} end
-    function rtf:GetNumPoints() log("GetNumPoints");return #self.points end
+    function rtf:GetNumPoints() log("GetNumPoints");if opts.badCount then return SECRET end;return #self.points end
     function rtf:GetPoint(i)
         log("GetPoint",i)
         if opts.secretPoint then return SECRET,nil,nil,0,0 end
@@ -112,7 +131,12 @@ local function NativeRaid(opts)
         self.points[#self.points+1]={...}
     end
     if not opts.noIgnore then
-        function rtf:IsIgnoringParentAlpha() log("IsIgnoringParentAlpha");return self.ignore end
+        function rtf:IsIgnoringParentAlpha()
+            log("IsIgnoringParentAlpha")
+            if opts.throwIgnore then error("blocked") end
+            if opts.secretIgnore then return SECRET end
+            return self.ignore
+        end
         function rtf:SetIgnoreParentAlpha(v) log("SetIgnoreParentAlpha",v);self.ignore=v end
     end
     if opts.forbidden then function rtf:IsForbidden() return true end end
@@ -174,6 +198,7 @@ test("index_1_to_8_texcoords",function()
     for i=1,8 do
         Index(i);f.raid.shown=false;Update(f)
         eq(f.raid.shown,true,i.." shown");ExpectCoords(f,i)
+        eq(f.raidStatus,"icon:"..i,i.." status")
     end
     local l,r,t,b=Last(f.raid,"SetTexCoord")
     eq(l,0.75,"8 left");eq(r,1,"8 right");eq(t,0.5,"8 top");eq(b,1,"8 bottom")
@@ -191,18 +216,27 @@ test("uses_blizzard_helper_when_present",function()
     Index(6);Update(f)
     eq(seen and seen[1],f.raid,"helper texture");eq(seen and seen[2],6,"helper index")
     eq(f.raid.shown,true,"shown")
+    eq(f.raidStatus,"icon:6","status")
     eq(Calls(f.raid,"SetTexCoord"),0,"no manual texcoords")
 end)
 
 test("marker_change_and_clear",function()
     local f=Plate(nil)
-    Index(8);Update(f);eq(f.raid.shown,true,"8 shown");ExpectCoords(f,8)
-    Index(3);Update(f);eq(f.raid.shown,true,"3 shown");ExpectCoords(f,3)
-    Index(nil);Update(f);eq(f.raid.shown,false,"cleared marker hidden")
-    Index(2);Update(f);eq(f.raid.shown,true,"set again")
-    Index(0);Update(f);eq(f.raid.shown,false,"0 hidden")
-    Index(5);Update(f);Index(9);Update(f);eq(f.raid.shown,false,"9 hidden")
-    Index(0/0);Update(f);eq(f.raid.shown,false,"NaN hidden")
+    Index(8);Update(f);eq(f.raid.shown,true,"8 shown");ExpectCoords(f,8);eq(f.raidStatus,"icon:8","8 status")
+    Index(3);Update(f);eq(f.raid.shown,true,"3 shown");ExpectCoords(f,3);eq(f.raidStatus,"icon:3","3 status")
+    Index(nil);Update(f);eq(f.raid.shown,false,"cleared marker hidden");eq(f.raidStatus,"unavailable:no-native","nil status")
+    Index(2);Update(f);eq(f.raid.shown,true,"set again");eq(f.raidStatus,"icon:2","2 status")
+    Index(0);Update(f);eq(f.raid.shown,false,"0 hidden");eq(f.raidStatus,"none","0 status")
+    Index(5);Update(f);eq(f.raidStatus,"icon:5","5 status")
+    Index(9);Update(f);eq(f.raid.shown,false,"9 hidden");eq(f.raidStatus,"none","9 status")
+    Index(0/0);Update(f);eq(f.raid.shown,false,"NaN hidden");eq(f.raidStatus,"none","NaN status")
+    -- NaN with a usable native marker: a plain number, so Blizzard's marker is not borrowed (and is released).
+    local rtf=NativeRaid()
+    local g=Plate(UnitFrame(rtf))
+    Index(SECRET);Update(g);ExpectBorrowed(g,rtf,"secret before NaN")
+    Index(0/0);Update(g)
+    eq(g.raidStatus,"none","NaN status with native");eq(g.nativeRaid,nil,"NaN releases the native marker")
+    ExpectOriginal(rtf,"NaN released")
 end)
 
 test("secret_nil_error_take_native_fallback",function()
@@ -215,6 +249,7 @@ test("secret_nil_error_take_native_fallback",function()
         GetRaidTargetIndex=case[2]
         Update(f)
         eq(f.raid.shown,false,what.." hides the own icon")
+        eq(f.raidStatus,"native",what.." status")
         ExpectBorrowed(f,rtf,what)
         eq(f.nativeRaidIgnore,false,what.." saved ignore flag")
         eq(#f.nativeRaidPoints,1,what.." saved anchor count")
@@ -226,6 +261,7 @@ test("secret_nil_error_take_native_fallback",function()
         local savedPoints=f.nativeRaidPoints
         Update(f)
         ExpectBorrowed(f,rtf,what.." second call")
+        eq(f.raidStatus,"native",what.." second call status")
         eq(f.nativeRaidPoints,savedPoints,what.." originals kept")
         eq(f.nativeRaidPoints[1][1],"RIGHT",what.." original point kept")
         eq(f.nativeRaidIgnore,false,what.." original flag kept")
@@ -255,6 +291,17 @@ test("detach_restores_native_marker",function()
     eq(f.raid.shown,false,"own icon hidden")
     eq(f.nativeRaid,nil,"nativeRaid cleared");eq(f.native,nil,"native released")
     eq(ns.active.nameplate1,nil,"plate released")
+end)
+
+test("detach_clears_raid_status",function()
+    local f=Plate(UnitFrame(NativeRaid()))
+    Index(SECRET);Update(f);eq(f.raidStatus,"native","borrowed status")
+    ns.active.nameplate1=f;ns.Detach("nameplate1")
+    eq(f.raidStatus,nil,"status cleared after the fallback")
+    local g=Plate(nil)
+    Index(4);Update(g);eq(g.raidStatus,"icon:4","icon status")
+    ns.active.nameplate1=g;ns.Detach("nameplate1")
+    eq(g.raidStatus,nil,"status cleared after the own icon")
 end)
 
 test("new_native_frame_restores_previous",function()
@@ -299,29 +346,174 @@ test("new_native_frame_restores_previous",function()
 end)
 
 test("fallback_unavailable_is_safe",function()
-    local function Check(what,f,rtf,expectWrites)
+    local function Check(what,f,status,rtf,expectWrites)
         f.raid.shown=true
-        Index(SECRET);Update(f);Update(f)
+        Index(SECRET);Update(f)
+        eq(f.raidStatus,status,what.." status")
+        Update(f)
         eq(f.raid.shown,false,what.." own icon hidden")
         eq(f.nativeRaid,nil,what.." nothing borrowed")
+        eq(f.raidStatus,status,what.." status on the next tick")
         if rtf and expectWrites==0 then eq(Writes(rtf),0,what.." native frame untouched") end
     end
-    Check("no native",Plate(nil))
-    Check("no RaidTargetFrame",Plate(UnitFrame(nil)))
+    Check("no native",Plate(nil),"unavailable:no-native")
+    Check("no RaidTargetFrame",Plate(UnitFrame(nil)),"unavailable:no-frame")
     local throwing=UnitFrame(nil)
     setmetatable(throwing,{__index=function(_,key) if key=="RaidTargetFrame" then error("forbidden access") end end})
-    Check("erroring RaidTargetFrame lookup",Plate(throwing))
-    Check("secret RaidTargetFrame",Plate(UnitFrame(SECRET)))
+    Check("erroring RaidTargetFrame lookup",Plate(throwing),"unavailable:no-frame")
+    Check("secret RaidTargetFrame",Plate(UnitFrame(SECRET)),"unavailable:no-frame")
     local forbidden=NativeRaid({forbidden=true})
-    Check("forbidden",Plate(UnitFrame(forbidden)),forbidden,0)
+    Check("forbidden",Plate(UnitFrame(forbidden)),"unavailable:forbidden",forbidden,0)
     local noIgnore=NativeRaid({noIgnore=true})
-    Check("no SetIgnoreParentAlpha",Plate(UnitFrame(noIgnore)),noIgnore,0)
+    Check("no SetIgnoreParentAlpha",Plate(UnitFrame(noIgnore)),"unavailable:no-ignore-alpha",noIgnore,0)
     local secretPoint=NativeRaid({secretPoint=true})
-    Check("secret GetPoint",Plate(UnitFrame(secretPoint)),secretPoint,0)
+    Check("secret GetPoint",Plate(UnitFrame(secretPoint)),"unavailable:points-unreadable",secretPoint,0)
     ExpectOriginal(secretPoint,"secret GetPoint")
+    local badCount=NativeRaid({badCount=true})
+    Check("secret GetNumPoints",Plate(UnitFrame(badCount)),"unavailable:points-unreadable",badCount,0)
+    ExpectOriginal(badCount,"secret GetNumPoints")
+    local secretIgnore=NativeRaid({secretIgnore=true})
+    Check("secret IsIgnoringParentAlpha",Plate(UnitFrame(secretIgnore)),"unavailable:ignore-unreadable",secretIgnore,0)
+    ExpectOriginal(secretIgnore,"secret IsIgnoringParentAlpha")
+    local throwIgnore=NativeRaid({throwIgnore=true})
+    Check("erroring IsIgnoringParentAlpha",Plate(UnitFrame(throwIgnore)),"unavailable:ignore-unreadable",throwIgnore,0)
+    ExpectOriginal(throwIgnore,"erroring IsIgnoringParentAlpha")
     local failing=NativeRaid({failSetPoint=true})
-    Check("erroring SetPoint",Plate(UnitFrame(failing)),failing)
+    Check("erroring SetPoint",Plate(UnitFrame(failing)),"unavailable:setpoint-failed",failing)
     ExpectOriginal(failing,"erroring SetPoint restored")
+end)
+
+-- /mp raid: runs the real slash handler and captures everything ns.Print sends to print.
+local function SlashRaid(input)
+    local out,realPrint={},print
+    print=function(text) out[#out+1]=text end
+    local ok,err=pcall(SlashCmdList.MOTEVEPLATES,input or "raid")
+    print=realPrint
+    if not ok then error("/mp raid raised: "..tostring(err),2) end
+    return out
+end
+local function Has(out,needle,what)
+    for _,line in ipairs(out) do if line:find(needle,1,true) then return line end end
+    error((what or needle).." not printed; got:\n"..table.concat(out,"\n"),2)
+end
+local function Lacks(out,needle,what)
+    for _,line in ipairs(out) do if line:find(needle,1,true) then error((what or needle).." printed: "..line,2) end end
+end
+-- The client side of /mp raid: one plate (nameplate1) is the target's, found through C_NamePlate by default.
+local function ReportWorld(f,opts)
+    opts=opts or {}
+    ns.db={enabled=true}
+    for k in pairs(ns.active) do ns.active[k]=nil end
+    if f then ns.active.nameplate1=f end
+    C_AddOns=nil
+    GetAddOnMetadata=function(name,field) eq(name,"MotevePlates","addon name");eq(field,"Version","field");return "9.9.9" end
+    C_NamePlate={GetNamePlateForUnit=function(unit)
+        eq(unit,"target","plate lookup unit")
+        if opts.secretBase then return SECRET end
+        return opts.base or (f and f.base)
+    end}
+    UnitExists=function() return opts.exists~=false end
+    if opts.secretExists then UnitExists=function() return SECRET end end
+    UnitIsUnit=function(a,b) return opts.unitIsUnit==true and a=="nameplate1" and b=="target" end
+end
+local function ReportCleanup()
+    ns.db=nil;C_AddOns,GetAddOnMetadata,C_NamePlate,UnitExists,UnitIsUnit=nil,nil,nil,nil,nil
+    for k in pairs(ns.active) do ns.active[k]=nil end
+end
+
+test("raid_report_with_plate",function()
+    -- Index 8: the own icon.
+    local f=Plate(UnitFrame(NativeRaid()))
+    ReportWorld(f)
+    GetRaidTargetIndex=function() return 8 end
+    Update(f)
+    local out=SlashRaid()
+    eq(out[1],"|cffa88bffMoteve Plates|r: Verzió: 9.9.9","version first")
+    Has(out,"nameplate1 (keresés: nameplate), látható: igen","plate found through C_NamePlate")
+    Has(out,"Jel sorszáma (nameplate1): number 8","plate index")
+    Has(out,"Jel sorszáma (target): number 8","target index")
+    Has(out,"Gyári UnitFrame: van","native present")
+    Has(out,"RaidTargetFrame: table","RaidTargetFrame classified")
+    Has(out,"Átemelt Blizzard-jel: nem","not borrowed")
+    Has(out,"raidStatus: icon:8","status")
+    Has(out,"Saját ikon látható: igen, jelkeret látható: igen","icon shown")
+    -- /mplates RAID reaches the same branch; nothing about the plate changed.
+    eq(#SlashRaid("RAID"),#out,"case-insensitive")
+    eq(f.raidStatus,"icon:8","report is read-only")
+    -- Erroring index: Blizzard's marker taken over.
+    GetRaidTargetIndex=function() error("blocked") end
+    Update(f)
+    out=SlashRaid()
+    Has(out,"Jel sorszáma (nameplate1): error","error index")
+    Has(out,"raidStatus: native","native status")
+    Has(out,"Átemelt Blizzard-jel: igen","borrowed")
+    Has(out,"Saját ikon látható: nem","own icon hidden")
+    -- Nil index.
+    GetRaidTargetIndex=function() return nil end
+    out=SlashRaid()
+    Has(out,"Jel sorszáma (nameplate1): nil","nil index")
+    -- Missing index function, a plate without a native frame and a hidden plate; no C_AddOns version either.
+    GetRaidTargetIndex=nil;GetAddOnMetadata=nil
+    local g=Plate(nil);g.shown=false
+    ReportWorld(g);GetAddOnMetadata=nil
+    out=SlashRaid()
+    eq(out[1],"|cffa88bffMoteve Plates|r: Verzió: ?","unknown version")
+    Has(out,"Jel sorszáma (nameplate1): missing","missing index")
+    Has(out,"Gyári UnitFrame: nincs","no native")
+    Has(out,"RaidTargetFrame: no native","RaidTargetFrame without native")
+    Has(out,"raidStatus: —","never updated")
+    Has(out,"látható: nem","hidden plate")
+    -- C_AddOns.GetAddOnMetadata wins over the global.
+    C_AddOns={GetAddOnMetadata=function() return "1.2.3" end}
+    out=SlashRaid()
+    eq(out[1],"|cffa88bffMoteve Plates|r: Verzió: 1.2.3","C_AddOns version")
+    ReportCleanup()
+end)
+
+test("raid_report_secret_never_stringified",function()
+    local f=Plate(UnitFrame(NativeRaid()))
+    ReportWorld(f,{secretBase=true,unitIsUnit=true})
+    GetAddOnMetadata=function() return SECRET_THROW end
+    GetRaidTargetIndex=function() return SECRET_THROW end
+    Update(f)
+    eq(f.raidStatus,"native","secret index takes the native fallback")
+    local out=SlashRaid()
+    eq(out[1],"|cffa88bffMoteve Plates|r: Verzió: ?","secret version not printed")
+    Has(out,"nameplate1 (keresés: UnitIsUnit)","plate found through UnitIsUnit")
+    Has(out,"Jel sorszáma (nameplate1): secret","plate index secret")
+    Has(out,"Jel sorszáma (target): secret","target index secret")
+    Has(out,"raidStatus: native","status")
+    -- A secret RaidTargetFrame is classified, never printed.
+    local g=Plate(UnitFrame(SECRET_THROW))
+    ReportWorld(g)
+    out=SlashRaid()
+    Has(out,"RaidTargetFrame: secret","secret frame")
+    Lacks(out,"<secret>","secret text")
+    ReportCleanup()
+end)
+
+test("raid_report_no_target_or_plate",function()
+    GetRaidTargetIndex=function() return 8 end
+    ReportWorld(nil,{exists=false})
+    local out=SlashRaid()
+    eq(#out,2,"version and one hint")
+    Has(out,"Verzió: 9.9.9","version")
+    Has(out,"Nincs kijelölt célpont","no target hint")
+    -- A target with no Moteve Plates plate: a plate exists but belongs to another unit.
+    local f=Plate(nil)
+    ReportWorld(f,{base={}})
+    out=SlashRaid()
+    Has(out,"nincs Moteve Plates névtáblája","no plate hint")
+    Lacks(out,"raidStatus","plate details")
+    ReportWorld(nil,{base={}})
+    out=SlashRaid()
+    Has(out,"nincs Moteve Plates névtáblája","no plate hint without active plates")
+    -- Secret UnitExists and a secret plate base: still a hint, no error.
+    ReportWorld(nil,{secretExists=true,secretBase=true})
+    out=SlashRaid()
+    eq(#out,2,"version and one hint with secret values")
+    Has(out,"Nincs kijelölt célpont","hint for an unreadable target")
+    ReportCleanup()
 end)
 
 print(string.format("%d/%d passed",count-failures,count))

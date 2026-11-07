@@ -91,11 +91,11 @@ function ns.CreatePlate(parent)
     f.cast.icon=f:CreateTexture(nil,"ARTWORK");f.cast.icon:SetTexCoord(0.08,0.92,0.08,0.92)
     f.threatText=ns.Font(f,10,true);f.threatText:SetJustifyH("LEFT")
     f.threatPct=ns.Font(f,10,true);f.threatPct:SetJustifyH("RIGHT")
-    -- Raid marker: its own frame above every aura layer (native AuraContainer at +5) and above the top aura row (ends at +80).
+    -- Raid marker: its own frame left of the plate, outside the target arrow, above every aura layer (native AuraContainer at +5).
     f.raidHolder=CreateFrame("Frame",nil,f);f.raidHolder:EnableMouse(false);f.raidHolder:SetSize(18,18)
-    f.raidHolder:SetFrameLevel(f:GetFrameLevel()+10);f.raidHolder:SetPoint("BOTTOM",f,"TOP",0,84)
+    f.raidHolder:SetFrameLevel(f:GetFrameLevel()+10);f.raidHolder:SetPoint("RIGHT",f,"LEFT",-18,0)
     f.raid=f.raidHolder:CreateTexture(nil,"OVERLAY");f.raid:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons");f.raid:SetAllPoints()
-    -- Combo points (Combo.lua): five 8 px dots right-aligned in the name row, below the auras (y=30) and raid icon (y=84).
+    -- Combo points (Combo.lua): five 8 px dots right-aligned in the name row, below the auras (y=30).
     f.combo=CreateFrame("Frame",nil,f);f.combo:EnableMouse(false)
     f.combo:SetSize(48,8);f.combo:SetPoint("BOTTOMRIGHT",f,"TOPRIGHT",0,4)
     for i=1,5 do
