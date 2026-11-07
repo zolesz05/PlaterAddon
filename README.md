@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.9**
+**Aktuális verzió: 0.2.10**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -33,7 +33,7 @@ A mappanevet tartsd meg; ne kerüljön még egy almappa a `MotevePlates.toc` és
 - Életerő és százalék, szint / elit jelzés, célpontkiemelés és raid marker. A szintszám a mob nehézségi színét kapja (szürke/zöld/sárga/narancs/piros), „??” mobnál piros.
 - Tank és DPS/healer szerepkör szerint működő aggrojelzés, külön kapcsolható szöveggel, százalékkal és sávszínezéssel. A szöveges jelzés új telepítésnél alapból ki van kapcsolva.
 - **DoT-sebzés előrejelzés** (új telepítésnél bekapcsolva, kikapcsolható): az életerősáv végén jelölő mutatja, mennyit sebeznek még a saját DoT-jaid.
-- **Kombópontok** Rogue és Druid karakternél (új telepítésnél bekapcsolva, kikapcsolható): a kijelölt célpont névtábláján öt kis pötty mutatja a megszerzett kombópontokat.
+- **Kombópontok** Rogue és Druid karakternél (új telepítésnél bekapcsolva, kikapcsolható): annak a mobnak a névtábláján, amelyiken a kombópontokat gyűjtötted, öt kis pötty mutatja őket, akkor is, ha közben másik célpontra váltasz.
 - Cast és channel sáv varázslatikonnal és idővel.
 - Saját debuffok és DoT-ok ikonnal, az ikonon belüli visszaszámlálóval és stackjelzéssel.
 - Alapból legfeljebb **8 debuff**; a darabszám **1–12 között állítható**, hat ikon után új sorral.
@@ -88,13 +88,13 @@ A követés logikája a [DoesItDie](https://github.com/swirllyman/DoesItDie) add
 
 ## Kombópontok
 
-Rogue és Druid karakternél a kijelölt célpont (target) névtábláján, a név sorában jobbra öt kis pötty mutatja, hány kombópontod van rajta. A teli pötty a skin kiemelőszínét kapja (Minimal fehér, Classic arany, Moteve cián), a halvány pötty szabad helyet jelöl. A sor csak a target tábláján és csak legalább 1 pontnál látszik; amíg látszik, a név rövidebb helyet kap, így hosszú névnél sem fut a pöttyök alá. Más kasztnál semmi nem változik.
+Rogue és Druid karakternél annak a mobnak a névtábláján, amelyiken a kombópontokat gyűjtötted, a név sorában jobbra öt kis pötty mutatja, hány kombópontod van rajta. A teli pötty a skin kiemelőszínét kapja (Minimal fehér, Classic arany, Moteve cián), a halvány pötty szabad helyet jelöl. A pöttyök a mobon maradnak akkor is, ha másik célpontra váltasz vagy törlöd a célpontot (Esc). Egyszerre csak egy mob tábláján látszanak: amint egy másik célponton legalább 1 pontot szerzel, a pöttyök oda kerülnek, és minden más táblán (a képernyőn kívül lévőkön is, amikor visszajönnek) eltűnnek. Ha a pontokat egy finisherrel elhasználod, a pöttyök eltűnnek. A sor csak legalább 1 pontnál látszik; amíg látszik, a név rövidebb helyet kap, így hosszú névnél sem fut a pöttyök alá. Más kasztnál semmi nem változik.
 
 Új telepítésnél alapból **be van kapcsolva**; a `/mp` panel alján a **Kombópontok a célponton** kapcsolóval kapcsolható ki. A kapcsoló csak Rogue és Druid karakternél látszik, és bekapcsolva az előnézeti kártyákon 3 pötty jelenik meg. Meglévő telepítésnél a mentett beállítás marad; az **Alapbeállítások** gomb visszakapcsolja.
 
 Druidnál a kombópontok csak macskaformában gyűlnek, ezért a pöttyök gyakorlatilag csak ott látszanak. Ha a kliens formából kilépve megtartja a pontokat, a pöttyök is maradnak, ugyanúgy, ahogy a játék saját célpontkerete mutatja.
 
-Az érték a kliens `GetComboPoints("player","target")` válaszából jön; ha ez nem olvasható, a `UnitPower("player",4)` értékéből. Ha a kliens egyiket sem adja meg (védett vagy hiányzó érték), a pöttyök nem jelennek meg. Külön eseményt nem figyel, a névtáblák 0,1 másodperces frissítése követi a változást.
+Az érték a kliens `GetComboPoints("player","target")` válaszából jön, a mobot az `UnitGUID` azonosítja. Ha ez nem olvasható, a `UnitPower("player",4)` értékéből; ez a játékosé, nem a mobé, ezért ilyenkor a pöttyök csak a target tábláján látszanak, és nem kerülnek át másik mobra. Ha a mob azonosítója nem olvasható (védett vagy hiányzó érték), a pöttyök csak akkor látszanak rajta, amíg ő a target. Ha a pontok úgy járnak le, hogy a mob közben nem a target, a pöttyök addig maradnak, amíg újra ki nem jelölöd. Ha a kliens egyiket sem adja meg (védett vagy hiányzó érték), a pöttyök nem jelennek meg. Külön eseményt nem figyel, a névtáblák 0,1 másodperces frissítése követi a változást.
 
 ## Távolság és debuffok
 
@@ -146,6 +146,8 @@ A 0.2.7-es verzióban Rogue és Druid karakternél a kijelölt célpont névtáb
 A 0.2.8-as verzióban a raid target marker (koponya, X és a többi) újra látszik mindhárom kinézeten. A jel saját keretben, a második debuffsor fölött jelenik meg, így a debuff ikonok nem takarják el. Ha a kliens nem adja ki a jel sorszámát (védett vagy hiányzó érték), az addon a Blizzard saját jelét emeli ki az elrejtett gyári névtáblából ugyanoda, és a névtábla elengedésekor visszateszi a helyére. A `tools/test_raid_marker.lua` helyi stubokkal ellenőrzi a jel keretének helyét, mind a nyolc jelet, a jel váltását és törlését, a Blizzard-jel átemelését és visszaadását, valamint a hiányzó vagy tiltott gyári keret esetét. Élő kliensen még nem teszteltük.
 
 A 0.2.9-es verzióban a raid target marker a névtábla bal oldalára, az életerősáv mellé került, a célpontjelző nyíl elé, így a többi névtábla és a debuffsorok nem takarják el. Az új `/mp raid` parancs a kijelölt célpont névtábláján kiírja az addon verzióját, a jel sorszámának fajtáját (szám, védett, hiányzó vagy hibás), hogy a Blizzard-jel kerete elérhető-e, valamint hogy az addon melyik úton jár és hol akadt el (például `icon:8`, `native` vagy `unavailable:no-frame`). A védett értékeket a parancs nem alakítja szöveggé. Ha a jel nem jelenik meg, ennek a kimenetnek a bemásolása segít a következő javításban. A `tools/test_raid_marker.lua` helyi stubokkal ellenőrzi az új helyet, minden ág állapotkódját és a `/mp raid` kimenetét, védett sorszámmal is. Élő kliensen még nem teszteltük.
+
+A 0.2.10-es verzióban a kombópontok pöttyei azon a mobon maradnak, amelyiken a pontokat gyűjtötted, akkor is, ha másik célpontra váltasz vagy törlöd a célpontot. Egyszerre csak egy mob a pontok gazdája: amint egy új célponton legalább 1 pontot szerzel, minden más tábla 0-ra áll, a finisher pedig törli a pöttyöket. A `tools/test_combo_points.lua` helyi stubokkal ellenőrzi a pöttyök maradását célpontváltáskor és célpont nélkül, az átkerülést új célpontra, a visszatérő régi névtáblát, a finishert, a `UnitPower` tartalékot, a védett vagy hiányzó azonosítót, valamint a kikapcsolt beállítást és a más kasztot. Élő kliensen még nem teszteltük.
 
 ## Hibajelentés
 

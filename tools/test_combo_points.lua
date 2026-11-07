@@ -1,8 +1,9 @@
--- Plain-Lua tests for the combo-point dots on the target's plate (Lua 5.1 or later), run from the repository root:
+-- Plain-Lua tests for the combo-point dots on the owner's plate (Lua 5.1 or later), run from the repository root:
 --   lua tools/test_combo_points.lua
 -- Core.lua, Threat.lua, Skins.lua, Combo.lua and Options.lua are loaded in TOC order against a stub CreateFrame whose
 -- frames record every method call, so the setting (ADDON_LOADED, ns.SetOption), the class filter, the read order,
--- the dots, the name width and the /mp switch run as in the client. Exits non-zero on any failure.
+-- the dots, the name width, the owner across target changes (with Plates.lua's ns.Detach) and the /mp switch run as
+-- in the client. Exits non-zero on any failure.
 local root=(arg and arg[0] or ""):match("^(.-)[/\\]?tools[/\\][^/\\]+$") or "."
 if root=="" then root="." end
 local unpack=unpack or table.unpack
@@ -38,9 +39,15 @@ function GetTime() return 100 end
 SlashCmdList={}
 UIParent=NewFrame("Frame")
 
--- Client stubs, reset by every test: the player's class file and the two combo-point sources, counting their calls.
+-- Client stubs, reset by every test: the player's class file, the two combo-point sources (counting their calls)
+-- and the plate units' GUIDs (guids[unit]; "error" raises).
 local class,points,power
 local calls={}
+local guids={}
+function UnitGUID(unit)
+    if guids[unit]=="error" then error("UnitGUID failed") end
+    return guids[unit]
+end
 function UnitClass(unit)
     if class=="error" then error("UnitClass failed") end
     return "Class",class
@@ -54,17 +61,25 @@ local function Source(name,value)
 end
 GetComboPoints=Source("GetComboPoints",function() return points end)
 UnitPower=Source("UnitPower",function() return power end)
-local stockComboPoints,stockUnitPower,stockUnitClass=GetComboPoints,UnitPower,UnitClass
+local stockComboPoints,stockUnitPower,stockUnitClass,stockUnitGUID=GetComboPoints,UnitPower,UnitClass,UnitGUID
 
 local ns={}
 local function LoadFile(name) assert(loadfile(root.."/MotevePlates/"..name))("MotevePlates",ns) end
 LoadFile("Core.lua");LoadFile("Threat.lua");LoadFile("Skins.lua");LoadFile("Combo.lua");LoadFile("Options.lua")
+-- Plates.lua for ns.Detach only, loaded into a view of ns so its own functions (ns.ApplyOptions, ...) stay out of the
+-- cases above; the modules Detach calls that this file does not load are no-ops.
+local plates=setmetatable({Dots={Clear=function() end},StopNativeAuras=function() end},{__index=ns})
+assert(loadfile(root.."/MotevePlates/Plates.lua"))("MotevePlates",plates)
+local function Detach(f)
+    plates.active[f.unit]=f;plates.Detach(f.unit)
+end
 
 local function test(name,fn)
     count=count+1
-    class,points,power,calls="ROGUE",nil,nil,{}
-    GetComboPoints,UnitPower,UnitClass=stockComboPoints,stockUnitPower,stockUnitClass
-    LoadFile("Combo.lua") -- ns.ComboClass caches the class once readable: every case reads it afresh.
+    class,points,power,calls,guids="ROGUE",nil,nil,{},{}
+    GetComboPoints,UnitPower,UnitClass,UnitGUID=stockComboPoints,stockUnitPower,stockUnitClass,stockUnitGUID
+    -- ns.ComboClass caches the class once readable and the owner is module state: every case starts afresh.
+    LoadFile("Combo.lua")
     local ok,err=pcall(fn)
     if ok then print("ok   "..name) else failures=failures+1;print("FAIL "..name..": "..tostring(err)) end
 end
@@ -92,6 +107,12 @@ local function Plate(skin)
     ns.StylePlate(f,skin or "classic")
     return f
 end
+-- A styled plate for unit, whose GUID is guid (nil leaves it unset).
+local function UnitPlate(unit,guid)
+    local f=Plate()
+    f.unit=unit;guids[unit]=guid
+    return f
+end
 local function Shown(f) return (Last(f.combo,"SetShown")) end
 local function NameWidth(f) return (Last(f.name,"SetWidth")) end
 -- Asserts the combo row is visible with exactly n full dots and the rest dimmed.
@@ -115,7 +136,7 @@ end
 test("toc_lists_combo_between_dots_and_plates",function()
     local file=assert(io.open(root.."/MotevePlates/MotevePlates.toc","r"))
     local text=file:read("*a");file:close()
-    eq(text:match("## Version:%s*(%S+)"),"0.2.9","version")
+    eq(text:match("## Version:%s*(%S+)"),"0.2.10","version")
     if not text:find("\nDots.lua\r?\nCombo.lua\r?\nPlates.lua\r?\n") then error("Combo.lua not between Dots.lua and Plates.lua") end
 end)
 
@@ -198,11 +219,135 @@ test("target_plate_shows_earned_and_free_dots",function()
     f=Plate();points=nil;power=2;ns.UpdateComboPoints(f,true);Dots(f,2,"druid, UnitPower fallback")
 end)
 
-test("hidden_on_a_non_target_plate",function()
-    HidesAfter("non-target",function() calls={} end,false)
-    eq(Calls("GetComboPoints")+Calls("UnitPower"),0,"no client read on a non-target plate")
-    local f=Plate();points=3
-    ns.UpdateComboPoints(f,false);eq(Shown(f),false,"never shown")
+-- Mobs A, B and C on nameplate1..3. update(f,isTarget) runs one refresh of f, as the 0.1 s ticker does.
+local function Mobs()
+    Load({width=190})
+    return UnitPlate("nameplate1","Creature-0-1-2-3-100-A"),UnitPlate("nameplate2","Creature-0-1-2-3-100-B"),
+        UnitPlate("nameplate3","Creature-0-1-2-3-100-C")
+end
+local function Hidden(f,what)
+    eq(Shown(f),false,what.." hidden")
+    eq(NameWidth(f),190,what.." name width")
+end
+
+test("dots_stay_on_the_owner_after_a_target_change",function()
+    local a,b,c=Mobs()
+    points=3
+    ns.UpdateComboPoints(a,true);ns.UpdateComboPoints(b,false);ns.UpdateComboPoints(c,false)
+    Dots(a,3,"A as target");Hidden(b,"B before");Hidden(c,"C before")
+    local guid,n=ns.ComboOwner();eq(guid,"Creature-0-1-2-3-100-A","owner");eq(n,3,"owner count")
+    -- Tab to B: GetComboPoints("player","target") is now 0, nothing built on B yet.
+    points=0;calls={}
+    ns.UpdateComboPoints(a,false);ns.UpdateComboPoints(b,true);ns.UpdateComboPoints(c,false)
+    Dots(a,3,"A after targeting B");Hidden(b,"B targeted");Hidden(c,"C")
+    eq(Calls("GetComboPoints"),1,"only the target plate reads the client")
+    -- Esc: no target at all, so no plate is the target.
+    points=nil;calls={}
+    ns.UpdateComboPoints(a,false);ns.UpdateComboPoints(b,false);ns.UpdateComboPoints(c,false)
+    Dots(a,3,"A with no target");Hidden(b,"B untargeted");Hidden(c,"C")
+    eq(Calls("GetComboPoints")+Calls("UnitPower"),0,"no client read on non-target plates")
+end)
+
+test("building_on_a_new_target_moves_the_owner",function()
+    local a,b,c=Mobs()
+    points=3;ns.UpdateComboPoints(a,true);Dots(a,3,"A as target")
+    points=0;ns.UpdateComboPoints(b,true);ns.UpdateComboPoints(a,false);Dots(a,3,"A while B is targeted")
+    points=1;ns.UpdateComboPoints(b,true);Dots(b,1,"B after 1 point")
+    local guid,n=ns.ComboOwner();eq(guid,"Creature-0-1-2-3-100-B","new owner");eq(n,1,"new owner count")
+    ns.UpdateComboPoints(a,false);Hidden(a,"A on its next update")
+    ns.UpdateComboPoints(c,false);Hidden(c,"C")
+    -- Back to A without building: A stays at 0 and B keeps its point.
+    points=0;ns.UpdateComboPoints(a,true);ns.UpdateComboPoints(b,false)
+    Hidden(a,"A targeted again");Dots(b,1,"B no longer targeted")
+end)
+
+test("old_owner_plate_shows_zero_when_it_comes_back",function()
+    local a,b=Mobs()
+    points=3;ns.UpdateComboPoints(a,true)
+    -- A leaves the screen: NAME_PLATE_UNIT_REMOVED runs Plates.lua's ns.Detach, which only hides the row.
+    Detach(a)
+    eq(Shown(a),false,"row hidden on detach");eq(a.unit,nil,"plate released")
+    eq(ns.ComboOwner(),"Creature-0-1-2-3-100-A","hiding the row keeps the owner")
+    points=2;ns.UpdateComboPoints(b,true);Dots(b,2,"B")
+    -- A comes back (NAME_PLATE_UNIT_ADDED) on another token.
+    local back=UnitPlate("nameplate4","Creature-0-1-2-3-100-A")
+    ns.UpdateComboPoints(back,false);Hidden(back,"old owner on return")
+    -- The owner returning off-screen keeps its dots.
+    Detach(b)
+    local again=UnitPlate("nameplate5","Creature-0-1-2-3-100-B")
+    ns.UpdateComboPoints(again,false);Dots(again,2,"owner on return")
+end)
+
+test("finisher_on_the_owner_clears_it",function()
+    local a,b=Mobs()
+    points=4;ns.UpdateComboPoints(a,true);Dots(a,4,"A")
+    points=0;ns.UpdateComboPoints(a,true);Hidden(a,"A after the finisher")
+    local guid,n=ns.ComboOwner();eq(guid,nil,"owner cleared");eq(n,0,"count cleared")
+    ns.UpdateComboPoints(a,false);Hidden(a,"A no longer targeted")
+    ns.UpdateComboPoints(b,false);Hidden(b,"B")
+end)
+
+test("unit_power_fallback_does_not_move_the_owner",function()
+    local a,b=Mobs()
+    points=3;ns.UpdateComboPoints(a,true)
+    -- GetComboPoints unreadable on B: the player-level UnitPower still has A's 3 points.
+    points,power=nil,3;ns.UpdateComboPoints(b,true);Dots(b,3,"B shows the fallback count as target")
+    eq(ns.ComboOwner(),"Creature-0-1-2-3-100-A","owner kept")
+    ns.UpdateComboPoints(a,false);Dots(a,3,"A keeps its dots")
+    -- A 0 from the fallback on the owner does not clear it either.
+    power=0;ns.UpdateComboPoints(a,true);Hidden(a,"A as target at fallback 0")
+    eq(ns.ComboOwner(),"Creature-0-1-2-3-100-A","owner kept at fallback 0")
+    -- With only the fallback from the start, nothing ever owns the points: target-only, as before.
+    LoadFile("Combo.lua");a,b=Mobs()
+    points,power=nil,2;ns.UpdateComboPoints(a,true);Dots(a,2,"fallback on the target")
+    ns.UpdateComboPoints(a,false);Hidden(a,"fallback, no longer targeted")
+    eq(ns.ComboOwner(),nil,"no owner from the fallback")
+end)
+
+test("secret_or_missing_guids_stay_hidden",function()
+    -- Counted loop: ipairs would stop at the nil and skip every later case.
+    local bads={n=6,SECRET,nil,false,"",42,"error"}
+    for i=1,bads.n do
+        local bad=bads[i]
+        LoadFile("Combo.lua")
+        local a,b=Mobs()
+        points=3;ns.UpdateComboPoints(a,true)
+        guids.nameplate2=bad
+        ns.UpdateComboPoints(b,false);Hidden(b,"non-target with GUID "..tostring(bad))
+        -- A target whose GUID is unreadable shows its points but owns nothing, and A no longer has them.
+        guids.nameplate1=bad
+        points=2;ns.UpdateComboPoints(a,true);Dots(a,2,"target with GUID "..tostring(bad))
+        eq(ns.ComboOwner(),nil,"no owner with GUID "..tostring(bad))
+        guids.nameplate1="Creature-0-1-2-3-100-A"
+        ns.UpdateComboPoints(a,false);Hidden(a,"old owner after an unreadable target built")
+    end
+    LoadFile("Combo.lua")
+    local a,b=Mobs()
+    points=3;ns.UpdateComboPoints(a,true)
+    UnitGUID=nil
+    ns.UpdateComboPoints(a,false);Hidden(a,"missing UnitGUID")
+    -- UnitGUID answers the owner's GUID for anything, so only the unit check can keep these hidden.
+    UnitGUID=function() return "Creature-0-1-2-3-100-A" end
+    local units={n=3,SECRET,nil,42}
+    for i=1,units.n do
+        local unit=units[i]
+        b.unit=unit;ns.UpdateComboPoints(b,false);Hidden(b,"unit "..tostring(unit))
+    end
+end)
+
+test("setting_off_or_other_class_clears_the_owner",function()
+    local a=Mobs()
+    points=3;ns.UpdateComboPoints(a,true)
+    eq(ns.SetOption("showComboPoints",false),true,"SetOption")
+    ns.UpdateComboPoints(a,false);Hidden(a,"setting off")
+    eq(ns.ComboOwner(),nil,"owner cleared by the setting")
+    ns.SetOption("showComboPoints",true)
+    ns.UpdateComboPoints(a,false);Hidden(a,"setting back on")
+    -- The class is cached once readable, so a non-combo class is one from the first read: it never gets an owner.
+    class="WARRIOR";LoadFile("Combo.lua");a=Mobs()
+    points=3;ns.UpdateComboPoints(a,true);Hidden(a,"warrior target")
+    eq(ns.ComboOwner(),nil,"no owner for a warrior")
+    ns.UpdateComboPoints(a,false);Hidden(a,"warrior non-target")
 end)
 
 test("hidden_at_zero_points",function()
