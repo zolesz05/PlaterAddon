@@ -326,6 +326,8 @@ test("secret_or_missing_guids_stay_hidden",function()
     points=3;ns.UpdateComboPoints(a,true)
     UnitGUID=nil
     ns.UpdateComboPoints(a,false);Hidden(a,"missing UnitGUID")
+    -- UnitGUID answers the owner's GUID for anything, so only the unit check can keep these hidden.
+    UnitGUID=function() return "Creature-0-1-2-3-100-A" end
     local units={n=3,SECRET,nil,42}
     for i=1,units.n do
         local unit=units[i]
