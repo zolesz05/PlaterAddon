@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.10**
+**Aktuális verzió: 0.2.11**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -119,7 +119,7 @@ A debuffokhoz a Forever kliens natív aura-megjelenítőjét használja, ha az e
 | `/mp auras` | Saját debuffok állapotának és az aktív aura-megjelenítőknek a kiírása |
 | `/mp errors` | Az aktuális belépés alatt rögzített hibák kiírása |
 | `/mp dotreset` | A DoT-előrejelzés tanult tickméreteinek törlése |
-| `/mp raid` | A kijelölt célpont raid target markerének diagnosztikája: verzió, a jel sorszámának fajtája, a Blizzard-jel kerete, az állapot és a láthatóság |
+| `/mp raid` | A kijelölt célpont raid target markerének diagnosztikája: addon- és kliensverzió, a jel sorszámának fajtája, a Blizzard-jel kerete, láthatósága és mérete, az állapot és a láthatóság |
 
 ## Kompatibilitás
 
@@ -148,6 +148,8 @@ A 0.2.8-as verzióban a raid target marker (koponya, X és a többi) újra láts
 A 0.2.9-es verzióban a raid target marker a névtábla bal oldalára, az életerősáv mellé került, a célpontjelző nyíl elé, így a többi névtábla és a debuffsorok nem takarják el. Az új `/mp raid` parancs a kijelölt célpont névtábláján kiírja az addon verzióját, a jel sorszámának fajtáját (szám, védett, hiányzó vagy hibás), hogy a Blizzard-jel kerete elérhető-e, valamint hogy az addon melyik úton jár és hol akadt el (például `icon:8`, `native` vagy `unavailable:no-frame`). A védett értékeket a parancs nem alakítja szöveggé. Ha a jel nem jelenik meg, ennek a kimenetnek a bemásolása segít a következő javításban. A `tools/test_raid_marker.lua` helyi stubokkal ellenőrzi az új helyet, minden ág állapotkódját és a `/mp raid` kimenetét, védett sorszámmal is. Élő kliensen még nem teszteltük.
 
 A 0.2.10-es verzióban a kombópontok pöttyei azon a mobon maradnak, amelyiken a pontokat gyűjtötted, akkor is, ha másik célpontra váltasz vagy törlöd a célpontot. Egyszerre csak egy mob a pontok gazdája: amint egy új célponton legalább 1 pontot szerzel, minden más tábla 0-ra áll, a finisher pedig törli a pöttyöket. A `tools/test_combo_points.lua` helyi stubokkal ellenőrzi a pöttyök maradását célpontváltáskor és célpont nélkül, az átkerülést új célpontra, a visszatérő régi névtáblát, a finishert, a `UnitPower` tartalékot, a védett vagy hiányzó azonosítót, valamint a kikapcsolt beállítást és a más kasztot. Élő kliensen még nem teszteltük.
+
+A 0.2.11-es verzióban a raid target marker akkor is az addon saját ikonjával jelenik meg, ha a kliens védett (titkos) sorszámot ad: az addon a jel saját textúrafájlját (`UI-RaidTargetingIcon_<n>`) a sorszám kiolvasása nélkül, összefűzéssel választja ki. Ha a kliens ezt nem engedi, vagy nem erősíti meg, a Blizzard saját jelét is a jel keretébe emeli; ezt most két sarokponttal rögzíti, így a kölcsönvett jel akkor sem zsugorodik el, ha nincs saját mérete. A `/mp raid` ezentúl a kliens verzióját és interfészszámát, a Blizzard-jel láthatóságát és méretét, valamint a saját ikon eredményét (`loaded`, `unconfirmed`, `concat-failed`, `texture-failed`, `not-loaded`) is kiírja; új állapotok: `icon:secret` és `icon:secret+native`. A `tools/test_raid_marker.lua` helyi stubokkal ellenőrzi ezeket az ágakat. Élő kliensen még nem teszteltük; ha a jel továbbra sem látszik, a `/mp raid` kimenete kell a következő javításhoz.
 
 ## Hibajelentés
 
