@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.11**
+**Aktuális verzió: 0.2.12**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -150,6 +150,8 @@ A 0.2.9-es verzióban a raid target marker a névtábla bal oldalára, az élete
 A 0.2.10-es verzióban a kombópontok pöttyei azon a mobon maradnak, amelyiken a pontokat gyűjtötted, akkor is, ha másik célpontra váltasz vagy törlöd a célpontot. Egyszerre csak egy mob a pontok gazdája: amint egy új célponton legalább 1 pontot szerzel, minden más tábla 0-ra áll, a finisher pedig törli a pöttyöket. A `tools/test_combo_points.lua` helyi stubokkal ellenőrzi a pöttyök maradását célpontváltáskor és célpont nélkül, az átkerülést új célpontra, a visszatérő régi névtáblát, a finishert, a `UnitPower` tartalékot, a védett vagy hiányzó azonosítót, valamint a kikapcsolt beállítást és a más kasztot. Élő kliensen még nem teszteltük.
 
 A 0.2.11-es verzióban a raid target marker akkor is az addon saját ikonjával jelenik meg, ha a kliens védett (titkos) sorszámot ad: az addon a jel saját textúrafájlját (`UI-RaidTargetingIcon_<n>`) a sorszám kiolvasása nélkül, összefűzéssel választja ki. Ha a kliens ezt nem engedi, vagy nem erősíti meg, a Blizzard saját jelét is a jel keretébe emeli; ezt most két sarokponttal rögzíti, így a kölcsönvett jel akkor sem zsugorodik el, ha nincs saját mérete. A `/mp raid` ezentúl a kliens verzióját és interfészszámát, a Blizzard-jel láthatóságát és méretét, valamint a saját ikon eredményét (`loaded`, `unconfirmed`, `concat-failed`, `texture-failed`, `not-loaded`) is kiírja; új állapotok: `icon:secret` és `icon:secret+native`. A `tools/test_raid_marker.lua` helyi stubokkal ellenőrzi ezeket az ágakat. Élő kliensen még nem teszteltük; ha a jel továbbra sem látszik, a `/mp raid` kimenete kell a következő javításhoz.
+
+A 0.2.12-es verzióban a Blizzard saját raid jele akkor is látszik, ha a kliens a jel keretének horgonyait sem adja ki (védett vagy hibás `GetNumPoints`/`GetPoint`, a `/mp raid` korábban `unavailable:points-unreadable` állapotot írt). Ilyenkor az addon a jelet nem mozgatja át, csak „csak alfa” módban figyelmen kívül hagyatja vele az elrejtett gyári névtábla átlátszóságát, így a jel az eredeti, Blizzard által adott helyén jelenik meg; és egy keretszinttel a saját jelkeret fölé emeli, hogy a saját névtábla ne takarja; a névtábla elengedésekor vagy sima sorszámnál csak ezt a jelzőt és a keretszintet állítja vissza (kiolvashatatlan keretszintnél azt nem módosítja). Ismert korlát: ebben a módban a jel nem a saját jelkeretben, hanem a Blizzard által adott helyen áll, így más névtábla vagy más réteg (strata) eltakarhatja. Új állapotok: `native-alpha` és `icon:secret+native-alpha`; a `/mp raid` ilyenkor „Átemelt Blizzard-jel: csak alfa” sort ír. A `tools/test_raid_marker.lua` helyi stubokkal ellenőrzi ezt az ágat. Élő kliensen még nem teszteltük. Ha a `/mp raid` kimenetében nincs „Titkos sorszám saját ikonja” sor, régebbi (0.2.11 előtti) verzió fut: telepítsd újra a `downloads/MotevePlates.zip`-ből.
 
 ## Hibajelentés
 

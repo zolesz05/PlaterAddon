@@ -6,13 +6,17 @@ local function IsForbidden(frame)
     return frame.IsForbidden and ns.Bool(ns.API(frame.IsForbidden,frame))~=false
 end
 -- Puts a borrowed native RaidTargetFrame back where it was (anchors and ignore-parent-alpha flag) and forgets it.
+-- A frame borrowed in alpha-only mode (f.nativeRaidAlphaOnly) was never moved, so only its flag goes back.
 local function RestoreNativeRaid(f)
     local rtf=f.nativeRaid
     if not rtf then return end
-    pcall(rtf.ClearAllPoints,rtf)
-    for _,p in ipairs(f.nativeRaidPoints or {}) do pcall(rtf.SetPoint,rtf,p[1],p[2],p[3],p[4],p[5]) end
+    if not f.nativeRaidAlphaOnly then
+        pcall(rtf.ClearAllPoints,rtf)
+        for _,p in ipairs(f.nativeRaidPoints or {}) do pcall(rtf.SetPoint,rtf,p[1],p[2],p[3],p[4],p[5]) end
+    end
     pcall(rtf.SetIgnoreParentAlpha,rtf,f.nativeRaidIgnore==true)
-    f.nativeRaid,f.nativeRaidPoints,f.nativeRaidIgnore=nil,nil,nil
+    if f.nativeRaidLevel then pcall(rtf.SetFrameLevel,rtf,f.nativeRaidLevel) end
+    f.nativeRaid,f.nativeRaidPoints,f.nativeRaidIgnore,f.nativeRaidAlphaOnly,f.nativeRaidLevel=nil,nil,nil,nil,nil
 end
 local function NativeVisuals(f,hide)
     if not hide then
@@ -125,42 +129,62 @@ function ns.UpdateAuras(f)
     end
 end
 -- Lifts Blizzard's own marker out of the faded native UnitFrame (f.native) onto f.raidHolder. Its original anchors and
--- ignore-parent-alpha flag are saved first; when they cannot be read safely the frame is left untouched.
--- Returns true, or the addon's own reason code for the exit that stopped it (shown by /mp raid).
+-- ignore-parent-alpha flag are saved first. When the anchors cannot be read (secret or erroring GetNumPoints/GetPoint, as
+-- on the live client's protected plates) the frame is not moved: in alpha-only mode it only ignores the faded parent's
+-- alpha, so Blizzard's marker stays visible where Blizzard put it; an unreadable original flag is then restored as false.
+-- In that mode the marker is also raised one frame level above f.raidHolder, so the addon's own plate (which sits over the
+-- faded native plate) does not cover it; its original level is saved and put back, and is left alone when unreadable.
+-- Returns the path taken, "native" or "native-alpha", or "unavailable:<reason>" for the exit that stopped it (/mp raid).
+local function ReadPoints(rtf)
+    local count=ns.Number(ns.API(rtf.GetNumPoints,rtf))
+    if not count then return nil end
+    local points={}
+    for i=1,count do
+        local point={pcall(rtf.GetPoint,rtf,i)}
+        if not point[1] then return nil end
+        for j=2,6 do if ns.Secret(point[j]) then return nil end end
+        points[i]={point[2],point[3],point[4],point[5],point[6]}
+    end
+    return points
+end
 local function NativeRaidFallback(f)
     local native=f.native
-    if not native then return "no-native" end
+    if not native then return "unavailable:no-native" end
     local ok,rtf=pcall(function() return native.RaidTargetFrame end)
-    if not ok or ns.Secret(rtf) or type(rtf)~="table" then return "no-frame" end
-    if IsForbidden(rtf) then return "forbidden" end
-    if type(rtf.SetIgnoreParentAlpha)~="function" then return "no-ignore-alpha" end
+    if not ok or ns.Secret(rtf) or type(rtf)~="table" then return "unavailable:no-frame" end
+    if IsForbidden(rtf) then return "unavailable:forbidden" end
+    if type(rtf.SetIgnoreParentAlpha)~="function" then return "unavailable:no-ignore-alpha" end
     if f.nativeRaid~=rtf then
         RestoreNativeRaid(f)
-        local count=ns.Number(ns.API(rtf.GetNumPoints,rtf))
-        if not count then return "points-unreadable" end
-        local points={}
-        for i=1,count do
-            local point={pcall(rtf.GetPoint,rtf,i)}
-            if not point[1] then return "points-unreadable" end
-            for j=2,6 do if ns.Secret(point[j]) then return "points-unreadable" end end
-            points[i]={point[2],point[3],point[4],point[5],point[6]}
-        end
+        local points=ReadPoints(rtf)
         local ignore
         if type(rtf.IsIgnoringParentAlpha)=="function" then
             local okIgnore,value=pcall(rtf.IsIgnoringParentAlpha,rtf)
-            if not okIgnore or ns.Secret(value) then return "ignore-unreadable" end
+            if not okIgnore or ns.Secret(value) then
+                if points then return "unavailable:ignore-unreadable" end
+                value=false
+            end
             ignore=value==true
         end
-        f.nativeRaid,f.nativeRaidPoints,f.nativeRaidIgnore=rtf,points,ignore
+        local level
+        if not points and type(rtf.SetFrameLevel)=="function" then level=ns.Number(ns.API(rtf.GetFrameLevel,rtf)) end
+        f.nativeRaid,f.nativeRaidPoints,f.nativeRaidIgnore,f.nativeRaidAlphaOnly=rtf,points,ignore,not points or nil
+        f.nativeRaidLevel=level
     end
     pcall(rtf.SetIgnoreParentAlpha,rtf,true)
+    if f.nativeRaidAlphaOnly then
+        local holder=f.raidHolder
+        local above=f.nativeRaidLevel and ns.Number(ns.API(holder.GetFrameLevel,holder))
+        if above then pcall(rtf.SetFrameLevel,rtf,above+1) end
+        return "native-alpha"
+    end
     pcall(rtf.ClearAllPoints,rtf)
     -- Two corners, not one CENTER point: a frame sized only by its original anchors would shrink to 0x0 on a single point.
     if not pcall(rtf.SetPoint,rtf,"TOPLEFT",f.raidHolder,"TOPLEFT",0,0)
         or not pcall(rtf.SetPoint,rtf,"BOTTOMRIGHT",f.raidHolder,"BOTTOMRIGHT",0,0) then
-        RestoreNativeRaid(f);return "setpoint-failed"
+        RestoreNativeRaid(f);return "unavailable:setpoint-failed"
     end
-    return true
+    return "native"
 end
 local RAID_SHEET="Interface\\TargetingFrame\\UI-RaidTargetingIcons"
 local RAID_FILE="Interface\\TargetingFrame\\UI-RaidTargetingIcon_"
@@ -184,8 +208,8 @@ end
 -- tries the addon's icon through SecretIcon; when that fails, or the client does not confirm it, Blizzard's marker is
 -- borrowed as well (both sit on f.raidHolder, so a working one covers the other). A nil or erroring index borrows
 -- Blizzard's marker. The raw index is only checked with ns.Secret before anything else.
--- f.raidStatus records the path taken: "icon:<n>", "none", "icon:secret", "native", "unavailable:<reason>", or
--- "icon:secret+native" / "icon:secret+unavailable:<reason>"; f.raidSecretIcon keeps SecretIcon's result for /mp raid.
+-- f.raidStatus records the path taken: "icon:<n>", "none", "icon:secret", "native", "native-alpha",
+-- "unavailable:<reason>", or "icon:secret+" followed by one of the last three; f.raidSecretIcon keeps SecretIcon's result for /mp raid.
 function ns.UpdateRaidMarker(f)
     local v=ns.API(GetRaidTargetIndex,f.unit)
     local secret=ns.Secret(v)
@@ -200,7 +224,6 @@ function ns.UpdateRaidMarker(f)
         if own=="loaded" then RestoreNativeRaid(f);f.raidStatus="icon:secret";return end
         if own~="unconfirmed" then f.raid:Hide() end
         local result=NativeRaidFallback(f)
-        result=result==true and "native" or "unavailable:"..result
         f.raidStatus=own=="unconfirmed" and "icon:secret+"..result or result
         return
     end
@@ -295,7 +318,7 @@ function ns.RaidReport()
     lines[#lines+1]="Gyári UnitFrame: "..(f.native and "van" or "nincs")
     local native=f.native
     lines[#lines+1]="RaidTargetFrame: "..(native and Classify(function() return native.RaidTargetFrame end) or "no native")
-    lines[#lines+1]="Átemelt Blizzard-jel: "..(f.nativeRaid and "igen" or "nem")
+    lines[#lines+1]="Átemelt Blizzard-jel: "..(f.nativeRaidAlphaOnly and "csak alfa" or f.nativeRaid and "igen" or "nem")
     lines[#lines+1]="Blizzard-jel: "..NativeMarker(native)
     lines[#lines+1]="raidStatus: "..(f.raidStatus or "—")
     lines[#lines+1]="Titkos sorszám saját ikonja: "..(f.raidSecretIcon or "—")
