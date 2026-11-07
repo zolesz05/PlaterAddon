@@ -305,7 +305,10 @@ test("unit_power_fallback_does_not_move_the_owner",function()
 end)
 
 test("secret_or_missing_guids_stay_hidden",function()
-    for _,bad in ipairs({SECRET,nil,"",42,"error"}) do
+    -- Counted loop: ipairs would stop at the nil and skip every later case.
+    local bads={n=6,SECRET,nil,false,"",42,"error"}
+    for i=1,bads.n do
+        local bad=bads[i]
         LoadFile("Combo.lua")
         local a,b=Mobs()
         points=3;ns.UpdateComboPoints(a,true)
@@ -323,7 +326,9 @@ test("secret_or_missing_guids_stay_hidden",function()
     points=3;ns.UpdateComboPoints(a,true)
     UnitGUID=nil
     ns.UpdateComboPoints(a,false);Hidden(a,"missing UnitGUID")
-    for _,unit in ipairs({SECRET,nil,42}) do
+    local units={n=3,SECRET,nil,42}
+    for i=1,units.n do
+        local unit=units[i]
         b.unit=unit;ns.UpdateComboPoints(b,false);Hidden(b,"unit "..tostring(unit))
     end
 end)
