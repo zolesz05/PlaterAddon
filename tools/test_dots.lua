@@ -469,13 +469,17 @@ test("detach_and_apply_options",function()
     StubCreateFrame()
     local Dots,ns=Load()
     ns.StopNativeAuras=function() end
+    assert(loadfile(root.."/MotevePlates/Combo.lua"))("MotevePlates",ns) -- TOC order: Plates.lua's Detach uses ns.ShowComboPoints
     assert(loadfile(root.."/MotevePlates/Plates.lua"))("MotevePlates",ns)
-    local f=Obj({unit="nameplate1",native=false,nativeRaid=false,dot=Obj({shown=true}),questBadge=Obj(),cast=Obj({icon=Obj()}),raid=Obj(),auras={Obj()}})
+    local f=Obj({unit="nameplate1",native=false,nativeRaid=false,dot=Obj({shown=true}),questBadge=Obj(),cast=Obj({icon=Obj()}),raid=Obj(),auras={Obj()},
+        combo=Obj({Obj(),Obj(),Obj(),Obj(),Obj()}),nameNarrow=false})
     ns.active.nameplate1=f
     Dots.Start("nameplate1",CORRUPTION,EN.Corruption,"enUS",nil,0)
     ns.Detach("nameplate1")
     eq(Dots.states.nameplate1,nil,"Detach clears the token's DoTs")
     eq(f.dot.shown,false,"Detach hides the marker")
+    local last=f.combo.calls[#f.combo.calls]
+    eq(last[1],"SetShown","Detach sets the combo row");eq(last[2],false,"Detach hides the combo points")
     eq(ns.active.nameplate1,nil,"plate released")
     registered={}
     ns.ApplyOptions()

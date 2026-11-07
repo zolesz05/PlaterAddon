@@ -91,6 +91,7 @@ assert(loadfile(root.."/MotevePlates/Core.lua"))("MotevePlates",ns)
 ns.Dots={Clear=function() end}
 ns.StopNativeAuras=function() end
 ns.UseNativeAuras=function() return false end
+assert(loadfile(root.."/MotevePlates/Combo.lua"))("MotevePlates",ns) -- TOC order: Plates.lua's Detach/UpdatePlate use the combo functions
 assert(loadfile(root.."/MotevePlates/Plates.lua"))("MotevePlates",ns)
 
 -- A fake Blizzard RaidTargetFrame: real anchors and ignore flag, every method call logged in rtf.log.
