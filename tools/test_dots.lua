@@ -471,7 +471,7 @@ test("detach_and_apply_options",function()
     ns.StopNativeAuras=function() end
     assert(loadfile(root.."/MotevePlates/Combo.lua"))("MotevePlates",ns) -- TOC order: Plates.lua's Detach uses ns.ShowComboPoints
     assert(loadfile(root.."/MotevePlates/Plates.lua"))("MotevePlates",ns)
-    local f=Obj({unit="nameplate1",native=false,dot=Obj({shown=true}),questBadge=Obj(),cast=Obj({icon=Obj()}),raid=Obj(),auras={Obj()},
+    local f=Obj({unit="nameplate1",native=false,nativeRaid=false,dot=Obj({shown=true}),questBadge=Obj(),cast=Obj({icon=Obj()}),raid=Obj(),auras={Obj()},
         combo=Obj({Obj(),Obj(),Obj(),Obj(),Obj()}),nameNarrow=false})
     ns.active.nameplate1=f
     Dots.Start("nameplate1",CORRUPTION,EN.Corruption,"enUS",nil,0)
