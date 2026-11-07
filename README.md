@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.8**
+**Aktuális verzió: 0.2.9**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -119,6 +119,7 @@ A debuffokhoz a Forever kliens natív aura-megjelenítőjét használja, ha az e
 | `/mp auras` | Saját debuffok állapotának és az aktív aura-megjelenítőknek a kiírása |
 | `/mp errors` | Az aktuális belépés alatt rögzített hibák kiírása |
 | `/mp dotreset` | A DoT-előrejelzés tanult tickméreteinek törlése |
+| `/mp raid` | A kijelölt célpont raid target markerének diagnosztikája: verzió, a jel sorszámának fajtája, a Blizzard-jel kerete, az állapot és a láthatóság |
 
 ## Kompatibilitás
 
@@ -144,9 +145,11 @@ A 0.2.7-es verzióban Rogue és Druid karakternél a kijelölt célpont névtáb
 
 A 0.2.8-as verzióban a raid target marker (koponya, X és a többi) újra látszik mindhárom kinézeten. A jel saját keretben, a második debuffsor fölött jelenik meg, így a debuff ikonok nem takarják el. Ha a kliens nem adja ki a jel sorszámát (védett vagy hiányzó érték), az addon a Blizzard saját jelét emeli ki az elrejtett gyári névtáblából ugyanoda, és a névtábla elengedésekor visszateszi a helyére. A `tools/test_raid_marker.lua` helyi stubokkal ellenőrzi a jel keretének helyét, mind a nyolc jelet, a jel váltását és törlését, a Blizzard-jel átemelését és visszaadását, valamint a hiányzó vagy tiltott gyári keret esetét. Élő kliensen még nem teszteltük.
 
+A 0.2.9-es verzióban a raid target marker a névtábla bal oldalára, az életerősáv mellé került, a célpontjelző nyíl elé, így a többi névtábla és a debuffsorok nem takarják el. Az új `/mp raid` parancs a kijelölt célpont névtábláján kiírja az addon verzióját, a jel sorszámának fajtáját (szám, védett, hiányzó vagy hibás), hogy a Blizzard-jel kerete elérhető-e, valamint hogy az addon melyik úton jár és hol akadt el (például `icon:8`, `native` vagy `unavailable:no-frame`). A védett értékeket a parancs nem alakítja szöveggé. Ha a jel nem jelenik meg, ennek a kimenetnek a bemásolása segít a következő javításban. A `tools/test_raid_marker.lua` helyi stubokkal ellenőrzi az új helyet, minden ág állapotkódját és a `/mp raid` kimenetét, védett sorszámmal is. Élő kliensen még nem teszteltük.
+
 ## Hibajelentés
 
-Hibát az [Issues oldalon](https://github.com/zolesz05/PlaterAddon/issues) jelezhetsz. Add meg a kliens és az addon verzióját, a kiválasztott skint és szerepkört, valamint a reprodukálás lépéseit. A `/mp errors` és `/mp auras` kimenete, illetve egy képernyőkép segíthet.
+Hibát az [Issues oldalon](https://github.com/zolesz05/PlaterAddon/issues) jelezhetsz. Add meg a kliens és az addon verzióját, a kiválasztott skint és szerepkört, valamint a reprodukálás lépéseit. A `/mp errors`, `/mp auras` és `/mp raid` kimenete, illetve egy képernyőkép segíthet.
 
 ## Forrás és csomagolás
 

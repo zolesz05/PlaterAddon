@@ -1,4 +1,4 @@
-Moteve Plates 0.2.8 – WoW Forever / Interface 16001
+Moteve Plates 0.2.9 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -120,8 +120,9 @@ TOVÁBBI KIJELZÉSEK
   Az aurák a saját névtáblához kapcsolódnak, a gyári UnitFrame elrejtése nem rejti el őket.
   Régebbi kliensen, ha nincs AuraContainer támogatás, a korábbi aura-lekérés marad tartalékmegoldásként;
   ott is csak az ikonon belüli visszaszámláló mutatja az időt.
-  Raid target marker a debuffsorok fölött, saját keretben, így a debuff ikonok nem takarják el.
-  Ha a kliens nem adja ki a jel sorszámát, a Blizzard saját jelét emeli ugyanoda.
+  Raid target marker az életerősáv bal oldalán, a célpontjelző nyíl előtt, saját keretben, így a debuff
+  ikonok és a többi névtábla nem takarják el. Ha a kliens nem adja ki a jel sorszámát, a Blizzard
+  saját jelét emeli ugyanoda. Ha a jel nem látszik, a /mp raid kiírja, miért.
   A nem célzott ellenfelek halványítása.
   Méretarány 65–150%, szélesség 140–260, sávmagasság 12–26, függőleges eltolás -30…40.
   A baráti és a saját névtáblákat az addon megtartja. Ellenséges játékosnál nincs NPC-aggroszínezés.
@@ -140,6 +141,7 @@ PARANCSOK
   /mp errors                  az aktuális belépés alatt rögzített hibák
   /mp auras                   saját debuffok kapcsolója és az aktív névtáblák aura-megjelenítője
   /mp dotreset                a DoT-előrejelzés tanult tickméreteinek törlése
+  /mp raid                    a célpont raid target markerének diagnosztikája (verzió, sorszám, állapot)
 
 ELLENŐRZÉS
   Helyi Lua/WoW-szimulációval tesztelve: a szerepkörök és aggroállapotok, három skin,
@@ -174,6 +176,11 @@ ELLENŐRZÉS
   0.2.8: a raid target marker tesztje: lua tools/test_raid_marker.lua (a jel saját kerete a debuffsorok
   fölött, a jelek 1–8 helye a textúrán, a jel váltása és törlése, védett, hiányzó vagy hibás sorszámnál
   a Blizzard-jel átemelése és visszaadása, leválasztáskor és újrahasznosított névtáblánál is).
+  0.2.9: a raid target marker tesztje (lua tools/test_raid_marker.lua) a jel új helyét a névtábla bal
+  oldalán (a célpontjelző nyíl, a küldetésjel, a névsor és a debuffsorok mellett), minden ág állapotkódját
+  (icon:<n>, none, native, unavailable:<kód>), a leválasztáskori törlését és a /mp raid kimenetét is
+  ellenőrzi: szám, hiba, hiányzó és védett sorszám, célpont vagy névtábla nélkül; a védett érték soha
+  nem lesz szöveg.
   Csak helyi stubokkal ellenőrizve, élő kliensen még nem teszteltük.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 

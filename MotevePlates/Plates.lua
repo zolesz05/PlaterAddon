@@ -36,7 +36,7 @@ function ns.Detach(unit)
     NativeVisuals(f,false)
     ns.StopNativeAuras(f)
     f.questBadge:Hide();f.questRelevant=nil;f.questNextCheck=nil
-    f.unit=nil;f.cast:Hide();f.cast.icon:Hide();f.raid:Hide();f.dot:Hide();ns.ShowComboPoints(f,0)
+    f.unit=nil;f.cast:Hide();f.cast.icon:Hide();f.raid:Hide();f.raidStatus=nil;f.dot:Hide();ns.ShowComboPoints(f,0)
     for _,a in ipairs(f.auras) do a:Hide() end
     f:Hide();ns.active[unit]=nil
 end
@@ -126,41 +126,53 @@ function ns.UpdateAuras(f)
 end
 -- Lifts Blizzard's own marker out of the faded native UnitFrame (f.native) onto f.raidHolder. Its original anchors and
 -- ignore-parent-alpha flag are saved first; when they cannot be read safely the frame is left untouched.
+-- Returns true, or the addon's own reason code for the exit that stopped it (shown by /mp raid).
 local function NativeRaidFallback(f)
     local native=f.native
-    if not native then return false end
+    if not native then return "no-native" end
     local ok,rtf=pcall(function() return native.RaidTargetFrame end)
-    if not ok or ns.Secret(rtf) or type(rtf)~="table" or IsForbidden(rtf) then return false end
-    if type(rtf.SetIgnoreParentAlpha)~="function" then return false end
+    if not ok or ns.Secret(rtf) or type(rtf)~="table" then return "no-frame" end
+    if IsForbidden(rtf) then return "forbidden" end
+    if type(rtf.SetIgnoreParentAlpha)~="function" then return "no-ignore-alpha" end
     if f.nativeRaid~=rtf then
         RestoreNativeRaid(f)
         local count=ns.Number(ns.API(rtf.GetNumPoints,rtf))
-        if not count then return false end
+        if not count then return "points-unreadable" end
         local points={}
         for i=1,count do
             local point={pcall(rtf.GetPoint,rtf,i)}
-            if not point[1] then return false end
-            for j=2,6 do if ns.Secret(point[j]) then return false end end
+            if not point[1] then return "points-unreadable" end
+            for j=2,6 do if ns.Secret(point[j]) then return "points-unreadable" end end
             points[i]={point[2],point[3],point[4],point[5],point[6]}
         end
         local ignore
         if type(rtf.IsIgnoringParentAlpha)=="function" then
             local okIgnore,value=pcall(rtf.IsIgnoringParentAlpha,rtf)
-            if not okIgnore or ns.Secret(value) then return false end
+            if not okIgnore or ns.Secret(value) then return "ignore-unreadable" end
             ignore=value==true
         end
         f.nativeRaid,f.nativeRaidPoints,f.nativeRaidIgnore=rtf,points,ignore
     end
     pcall(rtf.SetIgnoreParentAlpha,rtf,true)
     pcall(rtf.ClearAllPoints,rtf)
-    if not pcall(rtf.SetPoint,rtf,"CENTER",f.raidHolder,"CENTER",0,0) then RestoreNativeRaid(f);return false end
+    if not pcall(rtf.SetPoint,rtf,"CENTER",f.raidHolder,"CENTER",0,0) then RestoreNativeRaid(f);return "setpoint-failed" end
     return true
 end
--- A plain index 1-8 shows the addon's icon; any other plain number means no marker. A secret, nil or erroring index
--- falls back to Blizzard's marker. The raw index is only ever handed to ns.Number.
+-- A plain index 1-8 shows the addon's icon; any other plain number (NaN included) means no marker. A secret, nil or
+-- erroring index falls back to Blizzard's marker. The raw index is only checked with ns.Secret before anything else.
+-- f.raidStatus records the path taken: "icon:<n>", "none", "native" or "unavailable:<reason>".
 function ns.UpdateRaidMarker(f)
-    local raid=ns.Number(ns.API(GetRaidTargetIndex,f.unit))
-    if not raid then f.raid:Hide();NativeRaidFallback(f);return end
+    local v=ns.API(GetRaidTargetIndex,f.unit)
+    if not ns.Secret(v) and type(v)=="number" and v~=v then
+        RestoreNativeRaid(f);f.raid:Hide();f.raidStatus="none";return
+    end
+    local raid=ns.Number(v)
+    if not raid then
+        f.raid:Hide()
+        local result=NativeRaidFallback(f)
+        f.raidStatus=result==true and "native" or "unavailable:"..result
+        return
+    end
     RestoreNativeRaid(f)
     if raid>=1 and raid<=8 then
         if SetRaidTargetIconTexture then SetRaidTargetIconTexture(f.raid,raid)
@@ -168,8 +180,64 @@ function ns.UpdateRaidMarker(f)
             local col,row=(raid-1)%4,math.floor((raid-1)/4)
             f.raid:SetTexCoord(col/4,(col+1)/4,row/2,(row+1)/2)
         end
-        f.raid:Show()
-    else f.raid:Hide() end
+        f.raid:Show();f.raidStatus="icon:"..raid
+    else f.raid:Hide();f.raidStatus="none" end
+end
+-- What a client value read through fn is, without ever turning a secret into text:
+-- missing / error / secret / nil / number <n> / its type name.
+local function Classify(fn,...)
+    if type(fn)~="function" then return "missing" end
+    local ok,v=pcall(fn,...)
+    if not ok then return "error" end
+    if ns.Secret(v) then return "secret" end
+    if v==nil then return "nil" end
+    if type(v)=="number" then return "number "..tostring(v) end
+    return type(v)
+end
+local function YesNo(v)
+    v=ns.Bool(v)
+    if v==true then return "igen" elseif v==false then return "nem" end
+    return "?"
+end
+local function Shown(x)
+    if type(x)~="table" then return "?" end
+    return YesNo(ns.API(x.IsShown,x))
+end
+-- /mp raid: a read-only report of the raid marker path on the target's plate. Changes nothing.
+function ns.RaidReport()
+    local lines={}
+    local version=ns.API(C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata,ns.ADDON,"Version")
+    lines[1]="Verzió: "..((not ns.Secret(version) and type(version)=="string") and version or "?")
+    local unit,f,via
+    local base=ns.API(C_NamePlate and C_NamePlate.GetNamePlateForUnit,"target")
+    if base~=nil and not ns.Secret(base) then
+        for u,plate in pairs(ns.active) do
+            if plate.base==base then unit,f,via=u,plate,"nameplate";break end
+        end
+    end
+    if not f then
+        for u,plate in pairs(ns.active) do
+            if ns.Bool(ns.API(UnitIsUnit,u,"target"))==true then unit,f,via=u,plate,"UnitIsUnit";break end
+        end
+    end
+    if not f then
+        if ns.Bool(ns.API(UnitExists,"target"))==true then
+            lines[#lines+1]="A célpontnak nincs Moteve Plates névtáblája (nem ellenséges, túl messze van, vagy az addon ki van kapcsolva)"
+        else
+            lines[#lines+1]="Nincs kijelölt célpont. Jelölj ki egy ellenséges mobot, majd írd be újra: /mp raid"
+        end
+        return lines
+    end
+    lines[#lines+1]="Névtábla: "..unit.." (keresés: "..via.."), látható: "..Shown(f)
+    lines[#lines+1]="Jel sorszáma ("..unit.."): "..Classify(GetRaidTargetIndex,unit)
+    lines[#lines+1]="Jel sorszáma (target): "..Classify(GetRaidTargetIndex,"target")
+    lines[#lines+1]="Gyári UnitFrame: "..(f.native and "van" or "nincs")
+    local native=f.native
+    lines[#lines+1]="RaidTargetFrame: "..(native and Classify(function() return native.RaidTargetFrame end) or "no native")
+    lines[#lines+1]="Átemelt Blizzard-jel: "..(f.nativeRaid and "igen" or "nem")
+    lines[#lines+1]="raidStatus: "..(f.raidStatus or "—")
+    lines[#lines+1]="Saját ikon látható: "..Shown(f.raid)..", jelkeret látható: "..Shown(f.raidHolder)
+    return lines
 end
 local function Metadata(f)
     local name=ns.API(UnitName,f.unit)

@@ -159,6 +159,8 @@ SlashCmdList.MOTEVEPLATES=function(input)
             ns.Print(unit..": "..(f.auraContainer and "Blizzard AuraContainer" or "régi aura API"))
         end
         if count==0 then ns.Print("Nincs aktív ellenséges névtábla. Jelölj ki egy közeli ellenfelet.") end
+    elseif cmd=="raid" then
+        for _,line in ipairs(ns.RaidReport()) do ns.Print(line) end
     elseif cmd=="dotreset" then
         ns.Dots.ResetLearned()
         ns.Print("A tanult DoT-sebzésértékek törölve.")
