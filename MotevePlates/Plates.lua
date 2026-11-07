@@ -36,7 +36,7 @@ function ns.Detach(unit)
     NativeVisuals(f,false)
     ns.StopNativeAuras(f)
     f.questBadge:Hide();f.questRelevant=nil;f.questNextCheck=nil
-    f.unit=nil;f.cast:Hide();f.cast.icon:Hide();f.raid:Hide();f.raidStatus=nil;f.dot:Hide();ns.ShowComboPoints(f,0)
+    f.unit=nil;f.cast:Hide();f.cast.icon:Hide();f.raid:Hide();f.raidStatus=nil;f.raidSecretIcon=nil;f.dot:Hide();ns.ShowComboPoints(f,0)
     for _,a in ipairs(f.auras) do a:Hide() end
     f:Hide();ns.active[unit]=nil
 end
@@ -155,25 +155,57 @@ local function NativeRaidFallback(f)
     end
     pcall(rtf.SetIgnoreParentAlpha,rtf,true)
     pcall(rtf.ClearAllPoints,rtf)
-    if not pcall(rtf.SetPoint,rtf,"CENTER",f.raidHolder,"CENTER",0,0) then RestoreNativeRaid(f);return "setpoint-failed" end
+    -- Two corners, not one CENTER point: a frame sized only by its original anchors would shrink to 0x0 on a single point.
+    if not pcall(rtf.SetPoint,rtf,"TOPLEFT",f.raidHolder,"TOPLEFT",0,0)
+        or not pcall(rtf.SetPoint,rtf,"BOTTOMRIGHT",f.raidHolder,"BOTTOMRIGHT",0,0) then
+        RestoreNativeRaid(f);return "setpoint-failed"
+    end
     return true
 end
--- A plain index 1-8 shows the addon's icon; any other plain number (NaN included) means no marker. A secret, nil or
--- erroring index falls back to Blizzard's marker. The raw index is only checked with ns.Secret before anything else.
--- f.raidStatus records the path taken: "icon:<n>", "none", "native" or "unavailable:<reason>".
+local RAID_SHEET="Interface\\TargetingFrame\\UI-RaidTargetingIcons"
+local RAID_FILE="Interface\\TargetingFrame\\UI-RaidTargetingIcon_"
+-- A secret index cannot be compared or used in arithmetic, but it can be joined into a string and handed to SetTexture:
+-- that picks the marker's own file (UI-RaidTargetingIcon_<n>) without the addon ever reading n. Both steps run in pcall.
+-- Returns "loaded" (SetTexture said true), "unconfirmed" (shown, but SetTexture gave no plain answer) or why it failed:
+-- "concat-failed", "texture-failed" or "not-loaded".
+local function SecretIcon(f,v)
+    local ok,path=pcall(function() return RAID_FILE..v end)
+    if not ok then return "concat-failed" end
+    f.raidFile=true
+    local set,loaded=pcall(f.raid.SetTexture,f.raid,path)
+    if not set then return "texture-failed" end
+    loaded=ns.Bool(loaded)
+    if loaded==false then return "not-loaded" end
+    pcall(f.raid.SetTexCoord,f.raid,0,1,0,1)
+    f.raid:Show()
+    return loaded and "loaded" or "unconfirmed"
+end
+-- A plain index 1-8 shows the addon's icon; any other plain number (NaN included) means no marker. A secret index first
+-- tries the addon's icon through SecretIcon; when that fails, or the client does not confirm it, Blizzard's marker is
+-- borrowed as well (both sit on f.raidHolder, so a working one covers the other). A nil or erroring index borrows
+-- Blizzard's marker. The raw index is only checked with ns.Secret before anything else.
+-- f.raidStatus records the path taken: "icon:<n>", "none", "icon:secret", "native", "unavailable:<reason>", or
+-- "icon:secret+native" / "icon:secret+unavailable:<reason>"; f.raidSecretIcon keeps SecretIcon's result for /mp raid.
 function ns.UpdateRaidMarker(f)
     local v=ns.API(GetRaidTargetIndex,f.unit)
-    if not ns.Secret(v) and type(v)=="number" and v~=v then
+    local secret=ns.Secret(v)
+    f.raidSecretIcon=nil
+    if not secret and type(v)=="number" and v~=v then
         RestoreNativeRaid(f);f.raid:Hide();f.raidStatus="none";return
     end
     local raid=ns.Number(v)
     if not raid then
-        f.raid:Hide()
+        local own=secret and SecretIcon(f,v) or nil
+        f.raidSecretIcon=own
+        if own=="loaded" then RestoreNativeRaid(f);f.raidStatus="icon:secret";return end
+        if own~="unconfirmed" then f.raid:Hide() end
         local result=NativeRaidFallback(f)
-        f.raidStatus=result==true and "native" or "unavailable:"..result
+        result=result==true and "native" or "unavailable:"..result
+        f.raidStatus=own=="unconfirmed" and "icon:secret+"..result or result
         return
     end
     RestoreNativeRaid(f)
+    if f.raidFile then f.raid:SetTexture(RAID_SHEET);f.raidFile=nil end
     if raid>=1 and raid<=8 then
         if SetRaidTargetIconTexture then SetRaidTargetIconTexture(f.raid,raid)
         else
@@ -203,11 +235,40 @@ local function Shown(x)
     if type(x)~="table" then return "?" end
     return YesNo(ns.API(x.IsShown,x))
 end
+local function Visible(x)
+    if ns.Secret(x) or type(x)~="table" then return "?" end
+    local ok,fn=pcall(function() return x.IsVisible end)
+    if not ok then return "?" end
+    return YesNo(ns.API(fn,x))
+end
+-- A plain field of a client table, read in pcall; secrets and errors give nil.
+local function Field(t,key)
+    if ns.Secret(t) or type(t)~="table" then return nil end
+    local ok,v=pcall(function() return t[key] end)
+    if ok and not ns.Secret(v) then return v end
+end
+-- Blizzard's own marker on the plate's native UnitFrame: whether its frame and icon are visible and the frame's size.
+local function NativeMarker(native)
+    if not native then return "no native" end
+    local rtf=Field(native,"RaidTargetFrame")
+    if type(rtf)~="table" then return "nincs" end
+    local w,h=ns.API(Field(rtf,"GetSize"),rtf)
+    w,h=ns.Number(w),ns.Number(h)
+    local size=w and h and string.format("%.0fx%.0f",w,h) or "?"
+    return "keret látható: "..Visible(rtf)..", ikon látható: "..Visible(Field(rtf,"RaidTargetIcon"))..", méret: "..size
+end
+-- The client's version, build and interface number from GetBuildInfo, plain values only.
+local function Build()
+    local version,build,_,toc=ns.API(GetBuildInfo)
+    local function Plain(v) if not ns.Secret(v) and (type(v)=="string" or type(v)=="number") then return tostring(v) end return "?" end
+    return Plain(version).." ("..Plain(build).."), interfész: "..Plain(toc)
+end
 -- /mp raid: a read-only report of the raid marker path on the target's plate. Changes nothing.
 function ns.RaidReport()
     local lines={}
     local version=ns.API(C_AddOns and C_AddOns.GetAddOnMetadata or GetAddOnMetadata,ns.ADDON,"Version")
     lines[1]="Verzió: "..((not ns.Secret(version) and type(version)=="string") and version or "?")
+    lines[2]="Kliens: "..Build()..", titkos értékek: "..(type(issecretvalue)=="function" and "igen" or "nem")
     local unit,f,via
     local base=ns.API(C_NamePlate and C_NamePlate.GetNamePlateForUnit,"target")
     if base~=nil and not ns.Secret(base) then
@@ -235,7 +296,9 @@ function ns.RaidReport()
     local native=f.native
     lines[#lines+1]="RaidTargetFrame: "..(native and Classify(function() return native.RaidTargetFrame end) or "no native")
     lines[#lines+1]="Átemelt Blizzard-jel: "..(f.nativeRaid and "igen" or "nem")
+    lines[#lines+1]="Blizzard-jel: "..NativeMarker(native)
     lines[#lines+1]="raidStatus: "..(f.raidStatus or "—")
+    lines[#lines+1]="Titkos sorszám saját ikonja: "..(f.raidSecretIcon or "—")
     lines[#lines+1]="Saját ikon látható: "..Shown(f.raid)..", jelkeret látható: "..Shown(f.raidHolder)
     return lines
 end

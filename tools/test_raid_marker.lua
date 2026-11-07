@@ -2,7 +2,8 @@
 --   lua tools/test_raid_marker.lua
 -- Part 1 loads Core.lua and Skins.lua against a stub CreateFrame whose frames record every method call and checks the
 -- marker's own frame. Part 2 loads Core.lua and Plates.lua against stubs (GetRaidTargetIndex, issecretvalue, a fake
--- native UnitFrame with its RaidTargetFrame) and drives ns.UpdateRaidMarker, ns.UpdatePlate, ns.Detach and /mp raid.
+-- native UnitFrame with its RaidTargetFrame, a secret index that can be joined into a string) and drives
+-- ns.UpdateRaidMarker, ns.UpdatePlate, ns.Detach and /mp raid.
 -- Exits non-zero on any failure.
 local root=(arg and arg[0] or ""):match("^(.-)[/\\]?tools[/\\][^/\\]+$") or "."
 if root=="" then root="." end
@@ -11,6 +12,15 @@ local SECRET=setmetatable({},{__tostring=function() return "<secret>" end})
 -- A secret that fails loudly on any use the client forbids: text conversion, concatenation, comparison, length.
 local function Forbidden() error("secret value used",2) end
 local SECRET_THROW=setmetatable({},{__tostring=Forbidden,__concat=Forbidden,__eq=Forbidden,__lt=Forbidden,__le=Forbidden,__len=Forbidden})
+-- A secret index as the client hands it out: forbidden like SECRET_THROW, except that joining it into a string is allowed
+-- and gives a secret string (SECRET_PATH, itself unprintable). SECRET_PATH_FOR records the string it was joined to.
+local SECRET_PATH=setmetatable({},{__tostring=Forbidden,__concat=Forbidden,__eq=Forbidden,__lt=Forbidden,__le=Forbidden,__len=Forbidden})
+local SECRET_PATH_FOR
+local SECRET_CONCAT=setmetatable({},{__tostring=Forbidden,__eq=Forbidden,__lt=Forbidden,__le=Forbidden,__len=Forbidden,
+    __concat=function(a,b)
+        if type(a)~="string" then error("secret joined to a non-string",2) end
+        SECRET_PATH_FOR=a;return SECRET_PATH
+    end})
 local failures,count=0,0
 
 -- A frame stub: any method (a capitalised key) is a no-op that records its call in frame.calls[method];
@@ -36,7 +46,7 @@ function frameMethods.IsShown(self) return self.shown end
 function frameMethods.GetStatusBarTexture(self) return NewFrame("Texture",self) end
 function CreateFrame(kind,name,parent,template) return NewFrame(kind,parent,template) end
 SlashCmdList={}
-issecretvalue=function(v) return rawequal(v,SECRET) or rawequal(v,SECRET_THROW) end
+issecretvalue=function(v) return rawequal(v,SECRET) or rawequal(v,SECRET_THROW) or rawequal(v,SECRET_CONCAT) or rawequal(v,SECRET_PATH) end
 
 local function test(name,fn)
     count=count+1
@@ -180,9 +190,13 @@ end
 local function ExpectBorrowed(f,rtf,what)
     eq(f.nativeRaid,rtf,what.." borrowed")
     eq(rtf.ignore,true,what.." ignores parent alpha")
-    eq(#rtf.points,1,what.." single anchor")
-    local p=rtf.points[1]
-    eq(p[1],"CENTER",what.." point");eq(p[2],f.raidHolder,what.." anchored to the holder");eq(p[3],"CENTER",what.." relative point")
+    -- Two corners on the holder, so the borrowed frame takes the holder's size even if it had none of its own.
+    eq(#rtf.points,2,what.." two anchors")
+    for i,corner in ipairs({"TOPLEFT","BOTTOMRIGHT"}) do
+        local p=rtf.points[i]
+        eq(p[1],corner,what.." point "..i);eq(p[2],f.raidHolder,what.." anchored to the holder");eq(p[3],corner,what.." relative point "..i)
+        eq(p[4],0,what.." x "..i);eq(p[5],0,what.." y "..i)
+    end
 end
 local function ExpectOriginal(rtf,what)
     eq(#rtf.points,1,what.." anchor count")
@@ -383,6 +397,98 @@ test("fallback_unavailable_is_safe",function()
     ExpectOriginal(failing,"erroring SetPoint restored")
 end)
 
+-- A plate whose own icon answers SetTexture with result (or raises when result is "error"), logging every path.
+local function SecretPlate(uf,result)
+    local f=Plate(uf)
+    f.raid.textures={}
+    f.raid.SetTexture=function(self,path)
+        self.textures[#self.textures+1]=path
+        if rawequal(path,SECRET_PATH) and result=="error" then error("secret texture refused") end
+        return result
+    end
+    return f
+end
+local SHEET="Interface\\TargetingFrame\\UI-RaidTargetingIcons"
+
+test("secret_index_own_icon_when_confirmed",function()
+    local rtf=NativeRaid()
+    local f=SecretPlate(UnitFrame(rtf),true)
+    SECRET_PATH_FOR=nil
+    Index(SECRET_CONCAT);Update(f)
+    eq(SECRET_PATH_FOR,"Interface\\TargetingFrame\\UI-RaidTargetingIcon_","per-marker file prefix")
+    eq(rawequal(f.raid.textures[#f.raid.textures],SECRET_PATH),true,"own icon gets the secret path")
+    local l,r,t,b=Last(f.raid,"SetTexCoord")
+    eq(l,0,"full left");eq(r,1,"full right");eq(t,0,"full top");eq(b,1,"full bottom")
+    eq(f.raid.shown,true,"own icon shown")
+    eq(f.raidStatus,"icon:secret","status")
+    eq(f.raidSecretIcon,"loaded","secret icon result")
+    eq(f.nativeRaid,nil,"Blizzard's marker not borrowed");eq(Writes(rtf),0,"native marker untouched")
+    -- Borrowed earlier, then confirmed: Blizzard's marker goes back.
+    local rtf2=NativeRaid()
+    local g=SecretPlate(UnitFrame(rtf2),true)
+    Index(SECRET);Update(g);ExpectBorrowed(g,rtf2,"plain secret");eq(g.raidSecretIcon,"concat-failed","no concat")
+    Index(SECRET_CONCAT);Update(g)
+    eq(g.raidStatus,"icon:secret","confirmed after borrowing");ExpectOriginal(rtf2,"released once confirmed")
+    -- A plain index afterwards puts the sprite sheet back before its texcoords.
+    Index(5);Update(f)
+    eq(f.raid.textures[#f.raid.textures],SHEET,"sheet restored");ExpectCoords(f,5)
+    eq(f.raidStatus,"icon:5","plain status");eq(f.raidSecretIcon,nil,"secret result cleared")
+    local n=#f.raid.textures
+    Index(6);Update(f);eq(#f.raid.textures,n,"sheet set only once")
+end)
+
+test("secret_index_unconfirmed_keeps_native",function()
+    -- SetTexture gives no plain boolean: the own icon stays up and Blizzard's marker is borrowed behind it.
+    for _,case in ipairs({{"nil result",nil},{"secret result",SECRET}}) do
+        local what=case[1]
+        local rtf=NativeRaid()
+        local f=SecretPlate(UnitFrame(rtf),case[2])
+        Index(SECRET_CONCAT);Update(f)
+        eq(f.raid.shown,true,what.." own icon shown")
+        eq(f.raidStatus,"icon:secret+native",what.." status")
+        eq(f.raidSecretIcon,"unconfirmed",what.." secret icon result")
+        ExpectBorrowed(f,rtf,what)
+        Update(f);eq(f.raidStatus,"icon:secret+native",what.." next tick");ExpectBorrowed(f,rtf,what.." next tick")
+    end
+    local f=SecretPlate(nil,nil)
+    Index(SECRET_CONCAT);Update(f)
+    eq(f.raid.shown,true,"shown without a native frame")
+    eq(f.raidStatus,"icon:secret+unavailable:no-native","status without a native frame")
+    -- Detach and a NaN index both clear the secret icon result.
+    ns.active.nameplate1=f;ns.Detach("nameplate1")
+    eq(f.raidSecretIcon,nil,"cleared by Detach");eq(f.raidStatus,nil,"status cleared by Detach")
+    local g=SecretPlate(nil,nil)
+    Index(SECRET_CONCAT);Update(g);eq(g.raidSecretIcon,"unconfirmed","set")
+    Index(0/0);Update(g);eq(g.raidSecretIcon,nil,"cleared by NaN");eq(g.raid.shown,false,"NaN hides")
+end)
+
+test("secret_index_own_icon_failures_fall_back",function()
+    local cases={
+        {"refused texture",SECRET_CONCAT,false,"not-loaded"},
+        {"erroring texture",SECRET_CONCAT,"error","texture-failed"},
+        {"secret that cannot be joined",SECRET_THROW,true,"concat-failed"},
+        {"secret without concatenation",SECRET,true,"concat-failed"},
+    }
+    for _,case in ipairs(cases) do
+        local what=case[1]
+        local rtf=NativeRaid()
+        local f=SecretPlate(UnitFrame(rtf),case[3])
+        f.raid.shown=true
+        Index(case[2]);Update(f)
+        eq(f.raid.shown,false,what.." own icon hidden")
+        eq(f.raidStatus,"native",what.." status")
+        eq(f.raidSecretIcon,case[4],what.." secret icon result")
+        ExpectBorrowed(f,rtf,what)
+    end
+    -- A nil or erroring index never tries the secret icon.
+    for _,case in ipairs({{"nil",function() return nil end},{"error",function() error("blocked") end}}) do
+        local f=SecretPlate(UnitFrame(NativeRaid()),true)
+        GetRaidTargetIndex=case[2];Update(f)
+        eq(#f.raid.textures,0,case[1].." no texture change");eq(f.raidSecretIcon,nil,case[1].." no secret result")
+        eq(f.raidStatus,"native",case[1].." status")
+    end
+end)
+
 -- /mp raid: runs the real slash handler and captures everything ns.Print sends to print.
 local function SlashRaid(input)
     local out,realPrint={},print
@@ -415,9 +521,10 @@ local function ReportWorld(f,opts)
     UnitExists=function() return opts.exists~=false end
     if opts.secretExists then UnitExists=function() return SECRET end end
     UnitIsUnit=function(a,b) return opts.unitIsUnit==true and a=="nameplate1" and b=="target" end
+    GetBuildInfo=function() return "1.16.0","65000","Nov 1 2026",16001 end
 end
 local function ReportCleanup()
-    ns.db=nil;C_AddOns,GetAddOnMetadata,C_NamePlate,UnitExists,UnitIsUnit=nil,nil,nil,nil,nil
+    ns.db=nil;C_AddOns,GetAddOnMetadata,C_NamePlate,UnitExists,UnitIsUnit,GetBuildInfo=nil,nil,nil,nil,nil,nil
     for k in pairs(ns.active) do ns.active[k]=nil end
 end
 
@@ -437,6 +544,9 @@ test("raid_report_with_plate",function()
     Has(out,"Átemelt Blizzard-jel: nem","not borrowed")
     Has(out,"raidStatus: icon:8","status")
     Has(out,"Saját ikon látható: igen, jelkeret látható: igen","icon shown")
+    eq(out[2],"|cffa88bffMoteve Plates|r: Kliens: 1.16.0 (65000), interfész: 16001, titkos értékek: igen","client second")
+    Has(out,"Blizzard-jel: keret látható: ?, ikon látható: ?, méret: ?","native marker without readers")
+    Has(out,"Titkos sorszám saját ikonja: —","no secret icon")
     -- /mplates RAID reaches the same branch; nothing about the plate changed.
     eq(#SlashRaid("RAID"),#out,"case-insensitive")
     eq(f.raidStatus,"icon:8","report is read-only")
@@ -492,11 +602,47 @@ test("raid_report_secret_never_stringified",function()
     ReportCleanup()
 end)
 
+test("raid_report_secret_icon_and_native_marker",function()
+    -- Blizzard's marker with readable visibility and size, and a secret index the own icon showed unconfirmed.
+    local rtf=NativeRaid()
+    local icon={}
+    function icon:IsVisible() return false end
+    rtf.RaidTargetIcon=icon
+    function rtf:IsVisible() return true end
+    function rtf:GetSize() return 22,22 end
+    local f=SecretPlate(UnitFrame(rtf),nil)
+    ReportWorld(f)
+    Index(SECRET_CONCAT)
+    GetRaidTargetIndex=function() return SECRET_CONCAT end
+    Update(f)
+    local out=SlashRaid()
+    Has(out,"Jel sorszáma (nameplate1): secret","secret index")
+    Has(out,"raidStatus: icon:secret+native","status")
+    Has(out,"Titkos sorszám saját ikonja: unconfirmed","secret icon result")
+    Has(out,"Blizzard-jel: keret látható: igen, ikon látható: nem, méret: 22x22","native marker state")
+    -- Secret build values and a secret size are never printed.
+    GetBuildInfo=function() return SECRET_THROW,SECRET_THROW,nil,SECRET_THROW end
+    function rtf:GetSize() return SECRET_THROW,22 end
+    function rtf:IsVisible() return SECRET_THROW end
+    rtf.RaidTargetIcon=SECRET_THROW
+    out=SlashRaid()
+    Has(out,"Kliens: ? (?), interfész: ?","secret build")
+    Has(out,"Blizzard-jel: keret látható: ?, ikon látható: ?, méret: ?","secret native marker state")
+    -- No RaidTargetFrame on the native UnitFrame, and an erroring lookup.
+    ReportWorld(Plate(UnitFrame(nil)))
+    Has(SlashRaid(),"Blizzard-jel: nincs","no native marker frame")
+    local throwing=UnitFrame(nil)
+    setmetatable(throwing,{__index=function(_,key) if key=="RaidTargetFrame" then error("forbidden access") end end})
+    ReportWorld(Plate(throwing))
+    Has(SlashRaid(),"Blizzard-jel: nincs","erroring native marker frame")
+    ReportCleanup()
+end)
+
 test("raid_report_no_target_or_plate",function()
     GetRaidTargetIndex=function() return 8 end
     ReportWorld(nil,{exists=false})
     local out=SlashRaid()
-    eq(#out,2,"version and one hint")
+    eq(#out,3,"version, client and one hint")
     Has(out,"Verzió: 9.9.9","version")
     Has(out,"Nincs kijelölt célpont","no target hint")
     -- A target with no Moteve Plates plate: a plate exists but belongs to another unit.
@@ -511,7 +657,7 @@ test("raid_report_no_target_or_plate",function()
     -- Secret UnitExists and a secret plate base: still a hint, no error.
     ReportWorld(nil,{secretExists=true,secretBase=true})
     out=SlashRaid()
-    eq(#out,2,"version and one hint with secret values")
+    eq(#out,3,"version, client and one hint with secret values")
     Has(out,"Nincs kijelölt célpont","hint for an unreadable target")
     ReportCleanup()
 end)

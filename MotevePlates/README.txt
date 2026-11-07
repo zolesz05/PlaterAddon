@@ -1,4 +1,4 @@
-Moteve Plates 0.2.10 – WoW Forever / Interface 16001
+Moteve Plates 0.2.11 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -126,8 +126,9 @@ TOVÁBBI KIJELZÉSEK
   Régebbi kliensen, ha nincs AuraContainer támogatás, a korábbi aura-lekérés marad tartalékmegoldásként;
   ott is csak az ikonon belüli visszaszámláló mutatja az időt.
   Raid target marker az életerősáv bal oldalán, a célpontjelző nyíl előtt, saját keretben, így a debuff
-  ikonok és a többi névtábla nem takarják el. Ha a kliens nem adja ki a jel sorszámát, a Blizzard
-  saját jelét emeli ugyanoda. Ha a jel nem látszik, a /mp raid kiírja, miért.
+  ikonok és a többi névtábla nem takarják el. Ha a kliens védett sorszámot ad, az addon a jel saját
+  textúráját a sorszám kiolvasása nélkül választja ki; ha ez nem sikerül, a Blizzard saját jelét is
+  ugyanoda emeli. Ha a jel nem látszik, a /mp raid kiírja, miért.
   A nem célzott ellenfelek halványítása.
   Méretarány 65–150%, szélesség 140–260, sávmagasság 12–26, függőleges eltolás -30…40.
   A baráti és a saját névtáblákat az addon megtartja. Ellenséges játékosnál nincs NPC-aggroszínezés.
@@ -146,7 +147,8 @@ PARANCSOK
   /mp errors                  az aktuális belépés alatt rögzített hibák
   /mp auras                   saját debuffok kapcsolója és az aktív névtáblák aura-megjelenítője
   /mp dotreset                a DoT-előrejelzés tanult tickméreteinek törlése
-  /mp raid                    a célpont raid target markerének diagnosztikája (verzió, sorszám, állapot)
+  /mp raid                    a célpont raid target markerének diagnosztikája (verzió, kliens, sorszám,
+                              a Blizzard-jel láthatósága és mérete, állapot)
 
 ELLENŐRZÉS
   Helyi Lua/WoW-szimulációval tesztelve: a szerepkörök és aggroállapotok, három skin,
@@ -191,6 +193,10 @@ ELLENŐRZÉS
   minden más tábla (a leválasztott, majd visszatérő régi gazda is) 0-ra áll, a finisher törli a gazdát,
   a UnitPower tartalék nem vált gazdát, a védett vagy hiányzó UnitGUID rejtve marad, kikapcsolt beállításnál
   és más kasztnál pedig nincs gazda.
+  0.2.11: a raid target marker tesztje (lua tools/test_raid_marker.lua) a védett sorszám saját ikonját
+  (a jel fájlja összefűzéssel, a sorszám kiolvasása nélkül; megerősített, bizonytalan és sikertelen eset),
+  a Blizzard-jel két sarokpontos rögzítését a jelkerethez, valamint a /mp raid új sorait (kliens, a
+  Blizzard-jel láthatósága és mérete, a saját ikon eredménye) is ellenőrzi; védett érték soha nem lesz szöveg.
   Csak helyi stubokkal ellenőrizve, élő kliensen még nem teszteltük.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
