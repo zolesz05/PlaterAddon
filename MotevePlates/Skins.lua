@@ -93,6 +93,16 @@ function ns.CreatePlate(parent)
     f.threatPct=ns.Font(f,10,true);f.threatPct:SetJustifyH("RIGHT")
     f.raid=f:CreateTexture(nil,"OVERLAY");f.raid:SetTexture("Interface\\TargetingFrame\\UI-RaidTargetingIcons");f.raid:SetSize(18,18)
     f.raid:SetPoint("BOTTOM",f,"TOP",0,54)
+    -- Combo points (Combo.lua): five 8 px dots right-aligned in the name row, below the auras (y=30) and raid icon (y=54).
+    f.combo=CreateFrame("Frame",nil,f);f.combo:EnableMouse(false)
+    f.combo:SetSize(48,8);f.combo:SetPoint("BOTTOMRIGHT",f,"TOPRIGHT",0,4)
+    for i=1,5 do
+        local back=f.combo:CreateTexture(nil,"BACKGROUND");back:SetSize(10,10)
+        back:SetPoint("LEFT",(i-1)*10-1,0);back:SetColorTexture(0,0,0,0.7)
+        local dot=f.combo:CreateTexture(nil,"ARTWORK");dot:SetSize(8,8);dot:SetPoint("LEFT",(i-1)*10,0)
+        f.combo[i]=dot
+    end
+    f.combo:Hide()
     f.auras={}
     for i=1,12 do
         local a=CreateFrame("Frame",nil,f,"BackdropTemplate");a:SetSize(19,19);a:EnableMouse(false)
@@ -135,6 +145,8 @@ function ns.StylePlate(f,skin,options)
     f.cast.icon:SetSize(15,15);f.cast.icon:ClearAllPoints();f.cast.icon:SetPoint("RIGHT",f.cast,"LEFT",-3,0)
     Backdrop(f.chrome,skin,false);Backdrop(f.cast.edge,skin,false,true)
     f.lastTarget=nil
+    for i=1,#f.combo do f.combo[i]:SetColorTexture(s.accent[1],s.accent[2],s.accent[3],1) end
+    f.combo.count=nil;f.nameWidth=d.width;f.nameNarrow=false
     f.targetLeft:SetTextColor(s.accent[1],s.accent[2],s.accent[3])
     f.targetRight:SetTextColor(s.accent[1],s.accent[2],s.accent[3])
 end

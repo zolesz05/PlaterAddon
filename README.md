@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.6**
+**Aktuális verzió: 0.2.7**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -33,6 +33,7 @@ A mappanevet tartsd meg; ne kerüljön még egy almappa a `MotevePlates.toc` és
 - Életerő és százalék, szint / elit jelzés, célpontkiemelés és raid marker. A szintszám a mob nehézségi színét kapja (szürke/zöld/sárga/narancs/piros), „??” mobnál piros.
 - Tank és DPS/healer szerepkör szerint működő aggrojelzés, külön kapcsolható szöveggel, százalékkal és sávszínezéssel. A szöveges jelzés új telepítésnél alapból ki van kapcsolva.
 - **DoT-sebzés előrejelzés** (új telepítésnél bekapcsolva, kikapcsolható): az életerősáv végén jelölő mutatja, mennyit sebeznek még a saját DoT-jaid.
+- **Kombópontok** Rogue és Druid karakternél (új telepítésnél bekapcsolva, kikapcsolható): a kijelölt célpont névtábláján öt kis pötty mutatja a megszerzett kombópontokat.
 - Cast és channel sáv varázslatikonnal és idővel.
 - Saját debuffok és DoT-ok ikonnal, az ikonon belüli visszaszámlálóval és stackjelzéssel.
 - Alapból legfeljebb **8 debuff**; a darabszám **1–12 között állítható**, hat ikon után új sorral.
@@ -85,6 +86,16 @@ Korlátok:
 
 A követés logikája a [DoesItDie](https://github.com/swirllyman/DoesItDie) addon (MIT-licenc, © 2026 Joe Greive) megközelítésén alapul; a licenc a `MotevePlates/LICENSE-DoesItDie.txt` fájlban található. A DoesItDie kinézetét az addon nem veszi át.
 
+## Kombópontok
+
+Rogue és Druid karakternél a kijelölt célpont (target) névtábláján, a név sorában jobbra öt kis pötty mutatja, hány kombópontod van rajta. A teli pötty a skin kiemelőszínét kapja (Minimal fehér, Classic arany, Moteve cián), a halvány pötty szabad helyet jelöl. A sor csak a target tábláján és csak legalább 1 pontnál látszik; amíg látszik, a név rövidebb helyet kap, így hosszú névnél sem fut a pöttyök alá. Más kasztnál semmi nem változik.
+
+Új telepítésnél alapból **be van kapcsolva**; a `/mp` panel alján a **Kombópontok a célponton** kapcsolóval kapcsolható ki. A kapcsoló csak Rogue és Druid karakternél látszik, és bekapcsolva az előnézeti kártyákon 3 pötty jelenik meg. Meglévő telepítésnél a mentett beállítás marad; az **Alapbeállítások** gomb visszakapcsolja.
+
+Druidnál a kombópontok csak macskaformában gyűlnek, ezért a pöttyök gyakorlatilag csak ott látszanak. Ha a kliens formából kilépve megtartja a pontokat, a pöttyök is maradnak, ugyanúgy, ahogy a játék saját célpontkerete mutatja.
+
+Az érték a kliens `GetComboPoints("player","target")` válaszából jön; ha ez nem olvasható, a `UnitPower("player",4)` értékéből. Ha a kliens egyiket sem adja meg (védett vagy hiányzó érték), a pöttyök nem jelennek meg. Külön eseményt nem figyel, a névtáblák 0,1 másodperces frissítése követi a változást.
+
 ## Távolság és debuffok
 
 A névtáblák kívánt megjelenítési távolsága **5–100 yard** között kérhető. A panel a kliensből visszaolvasott értéket is megmutatja. A játék vagy a szerver alacsonyabb korlátot szabhat; az addon ezen nem tud túllépni. Harc közben a módosítás a harc végéig vár.
@@ -129,6 +140,8 @@ A 0.2.5-ös verzióban új telepítésnél a **Classic** az alapértelmezett kin
 
 A 0.2.6-os verzióban a Warrior Deep Wounds vérzése is bekerül a DoT-előrejelzés jelölőjébe. Cast nélkül, a saját debuffod megjelenésétől indul bármelyik névtáblán, egy újabb crit újraindítja, a debuff lekerülése vagy lejárta pedig eldobja. A tickméretet a talentszintből és a főkezes fegyver átlagsebzéséből becsli, utána a saját tickjeiből méri; ezt a méretet nem menti, mert a fegyverrel és a támadóerővel változik. Ha a becslés nem olvasható, a jelölő az első szoros ritmusú tick után jelenik meg. A `tools/test_dots.lua` helyi stubokkal ellenőrzi a debuffból indulást, mindkét méretágat, az újraindítást, a lekerülést és lejártát, a félúton látott debuffot, a magyar nevű debuffot és az eseménykezelést. Élő kliensen még nem teszteltük; a WoW Forever debuff-azonosítója (12721) sem ellenőrzött, ezért a kliens által adott debuffnév is egyezik.
 
+A 0.2.7-es verzióban Rogue és Druid karakternél a kijelölt célpont névtábláján öt pötty mutatja a kombópontokat; a teli pötty a skin kiemelőszínét kapja, és a név addig rövidebb helyet kap. A `/mp` panel **Kombópontok a célponton** kapcsolója (új telepítésnél bekapcsolva) csak ennél a két kasztnál látszik. A `tools/test_combo_points.lua` helyi stubokkal ellenőrzi az alapértéket és a mentett érték ellenőrzését, a kasztszűrést, a `GetComboPoints` → `UnitPower` sorrendet, a védett, hiányzó és hibás értékeket, a pöttyök kitöltését és elrejtését, a név szélességét, a skinszínt és a panel kapcsolóját. Élő kliensen még nem teszteltük; hogy a WoW Forever kliens olvasható kombópontértéket ad-e, még nem ellenőrzött.
+
 ## Hibajelentés
 
 Hibát az [Issues oldalon](https://github.com/zolesz05/PlaterAddon/issues) jelezhetsz. Add meg a kliens és az addon verzióját, a kiválasztott skint és szerepkört, valamint a reprodukálás lépéseit. A `/mp errors` és `/mp auras` kimenete, illetve egy képernyőkép segíthet.
@@ -143,7 +156,7 @@ A legfrissebb telepíthető csomag frissítése a repository gyökeréből:
 python tools/package_addon.py
 ```
 
-A DoT-logika, a szintszín, a debuff-idő, a DoT-szín és az alapbeállítások tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
+A DoT-logika, a szintszín, a debuff-idő, a DoT-szín, az alapbeállítások és a kombópontok tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
 
 ```sh
 lua tools/test_dots.lua
@@ -151,6 +164,7 @@ lua tools/test_level_color.lua
 lua tools/test_aura_timer.lua
 lua tools/test_dot_color.lua
 lua tools/test_defaults.lua
+lua tools/test_combo_points.lua
 ```
 
 A csomagoló ellenőrzi a TOC bejegyzéseit és a ZIP tartalmát, lecseréli a `downloads/MotevePlates.zip` fájlt, és eltávolítja a korábbi verziószámos addoncsomagokat ebből a mappából. A forrást, a ZIP-et és a README-t együtt kell feltölteni.

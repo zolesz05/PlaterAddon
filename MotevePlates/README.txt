@@ -1,4 +1,4 @@
-Moteve Plates 0.2.6 – WoW Forever / Interface 16001
+Moteve Plates 0.2.7 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -85,6 +85,19 @@ DOT-ELŐREJELZÉS
   A követés logikája a DoesItDie addon (https://github.com/swirllyman/DoesItDie, MIT-licenc,
   Copyright (c) 2026 Joe Greive) megközelítésén alapul; licence: LICENSE-DoesItDie.txt.
 
+KOMBÓPONTOK
+  Rogue és Druid karakternél a kijelölt célpont névtábláján, a név sorában jobbra öt kis pötty mutatja
+  a megszerzett kombópontokat: a teli pötty a skin kiemelőszínét kapja, a halvány szabad helyet jelöl.
+  Csak a target tábláján és csak legalább 1 pontnál látszik; addig a név rövidebb helyet kap.
+  Más kasztnál semmi nem változik.
+  Új telepítésnél bekapcsolva; a /mp panel alján a "Kombópontok a célponton" kapcsolóval kapcsolható ki.
+  A kapcsoló csak Rogue és Druid karakternél látszik. Meglévő telepítésnél a mentett érték marad;
+  az Alapbeállítások gomb visszakapcsolja. Bekapcsolva az előnézeti kártyákon 3 pötty látszik.
+  Druidnál a pontok csak macskaformában gyűlnek, ezért a pöttyök gyakorlatilag csak ott látszanak.
+  Ha a kliens formából kilépve megtartja a pontokat, a pöttyök is maradnak, ahogy a játék célpontkeretén.
+  Forrás: GetComboPoints("player","target"), ha az nem olvasható, UnitPower("player",4).
+  Ha a kliens egyiket sem adja meg (védett vagy hiányzó érték), a pöttyök nem jelennek meg.
+
 TOVÁBBI KIJELZÉSEK
   Küldetésmobok: apró, tompa arany ! a név előtt, háttér és felirat nélkül; a név eredeti színével.
   A kiemelés a /mp panel alján kapcsolható. Az életerősáv aggro szerinti színe megmarad.
@@ -152,6 +165,10 @@ ELLENŐRZÉS
   és a becslés nélküli szoros ablakot, a crit utáni újraindítást, a lekerülést és lejártát, a félúton
   látott debuffot, a magyar nevű debuffot, a mentett tickméret mellőzését és a Warrior UNIT_AURA útját
   is ellenőrzi.
+  0.2.7: a kombópontok tesztje: lua tools/test_combo_points.lua (alapérték és mentett érték, Rogue/Druid
+  kasztszűrés, GetComboPoints -> UnitPower sorrend, védett / hiányzó / hibás érték, 0–5 közé vágás,
+  teli és halvány pöttyök, elrejtés nem target táblán, 0 pontnál, kikapcsolva és más kasztnál,
+  a név szélessége, a skin kiemelőszíne és a /mp kapcsoló helye, láthatósága és mentése).
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK
