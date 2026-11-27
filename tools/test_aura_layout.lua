@@ -5,6 +5,7 @@
 -- (Auras.lua) takes its button size and row width from it when the container is built (applied after /reload).
 -- Core.lua, Skins.lua and Auras.lua are loaded in TOC order against a stub CreateFrame whose frames record every
 -- method call. Exits non-zero on any failure.
+-- The stack count of both paths sits on an overlay above the cooldown, bottom-right (ns.CreateAuraCount).
 local root=(arg and arg[0] or ""):match("^(.-)[/\\]?tools[/\\][^/\\]+$") or "."
 if root=="" then root="." end
 local unpack=unpack or table.unpack
@@ -170,6 +171,81 @@ test("native_size_fixed_until_reload",function()
     local later=NewFrame("Button")
     fresh.initializeFrame(later)
     eq(Last(later,"SetSize"),16,"new container size")
+end)
+
+-- Stack count: a child frame draws above all of its parent's regions, so the count must not be a region of the icon
+-- frame under its full-size Cooldown child. It lives on an overlay (a child of the icon, one frame level above the
+-- cooldown), bottom-right and right-justified, with a font sized from the icon size.
+local function FontSize(fontString)
+    local _,size,flags=Last(fontString,"SetFont")
+    return size,flags
+end
+local function CheckCount(countText,icon,cooldown,what)
+    eq(countText.kind,"FontString",what.." kind")
+    local overlay=countText.parent
+    if overlay==icon then error(what.." is a region of the icon frame, under the cooldown") end
+    if overlay==cooldown then error(what.." is a region of the cooldown, hidden with it") end
+    eq(overlay.kind,"Frame",what.." overlay kind");eq(overlay.parent,icon,what.." overlay parent")
+    eq(Last(overlay,"SetFrameLevel"),cooldown:GetFrameLevel()+1,what.." overlay level above the cooldown")
+    if not overlay.calls.SetAllPoints then error(what.." overlay does not cover the icon") end
+    local point,x,y=Last(countText,"SetPoint")
+    eq(point,"BOTTOMRIGHT",what.." point");eq(x,1,what.." x");eq(y,-1,what.." y")
+    eq(Last(countText,"SetJustifyH"),"RIGHT",what.." justify")
+    return overlay
+end
+test("count_size_from_icon_size",function()
+    eq(ns.AuraCountSize(14),10,"14 px");eq(ns.AuraCountSize(19),10,"19 px")
+    eq(ns.AuraCountSize(26),14,"26 px");eq(ns.AuraCountSize(32),17,"32 px")
+    eq(ns.AuraCountSize(nil),10,"invalid size uses the default icon size")
+end)
+test("fallback_count_above_cooldown_bottom_right",function()
+    local f=ns.CreatePlate(NewFrame("Frame"))
+    for i,a in ipairs(f.auras) do
+        eq(a.cooldown.parent,a,"aura "..i.." cooldown parent")
+        eq(CheckCount(a.count,a,a.cooldown,"aura "..i.." count"),a.countFrame,"aura "..i.." count frame")
+    end
+end)
+test("fallback_count_font_follows_aura_size",function()
+    local f=ns.CreatePlate(NewFrame("Frame"))
+    ns.StylePlate(f,"moteve",Options(19))
+    for i,a in ipairs(f.auras) do
+        local size,flags=FontSize(a.count)
+        eq(size,10,"aura "..i.." count size at 19");eq(flags,"OUTLINE","aura "..i.." count outline")
+    end
+    ns.StylePlate(f,"moteve",Options(30))
+    for i,a in ipairs(f.auras) do eq(FontSize(a.count),16,"aura "..i.." count size at 30") end
+end)
+test("native_count_above_cooldown_bottom_right",function()
+    for _,size in ipairs({14,19,32}) do
+        Load({auraSize=size,enabled=false})
+        local _,options=Native(NewFrame("Frame"))
+        local button=NewFrame("Button")
+        options.initializeFrame(button)
+        local cooldown=Last(button,"SetDurationCooldown")
+        eq(cooldown.kind,"Cooldown","cooldown kind");eq(cooldown.parent,button,"cooldown parent")
+        local countText=Last(button,"SetApplicationCount")
+        CheckCount(countText,button,cooldown,"native count at "..size)
+        local fontSize,flags=FontSize(countText)
+        eq(fontSize,ns.AuraCountSize(size),"native count size at "..size);eq(flags,"OUTLINE","native count outline")
+        eq(#button.calls.SetApplicationCount,1,"count registered once")
+    end
+end)
+test("native_count_falls_back_to_button_when_rejected",function()
+    Load({auraSize=19,enabled=false})
+    local _,options=Native(NewFrame("Frame"))
+    local button=NewFrame("Button")
+    local registered={}
+    function button.SetApplicationCount(self,fontString)
+        if fontString.parent~=self then error("count must belong to the button") end
+        registered[#registered+1]=fontString
+    end
+    options.initializeFrame(button)
+    eq(#registered,1,"fallback count registered")
+    local countText=registered[1]
+    eq(countText.parent,button,"fallback count parent")
+    eq(Last(countText,"SetPoint"),"BOTTOMRIGHT","fallback count point")
+    eq(Last(countText,"SetJustifyH"),"RIGHT","fallback count justify")
+    eq(FontSize(countText),10,"fallback count size")
 end)
 
 print(string.format("%d/%d passed",count-failures,count))
