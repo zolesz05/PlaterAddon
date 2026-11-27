@@ -46,7 +46,7 @@ function ns.Print(text) print("|cffa88bffMoteve Plates|r: "..text) end
 ns.defaults={enabled=true,skin="classic",role="auto",scale=1,width=190,height=17,offset=0,distance=40,
     showAggro=false,colorThreat=true,showThreatPercent=true,warningAt=85,
     healthText=true,healthPercent=true,showLevel=true,showCast=true,showAuras=true,maxAuras=8,dimOthers=true,showQuest=true,
-    showDotPrediction=true,dotColor="skin",showComboPoints=true,auraSize=19}
+    showDotPrediction=true,dotColor="skin",showComboPoints=true,auraSize=19,stackPlates=true}
 local ranges={scale={0.65,1.5},width={140,260},height={12,26},offset={-30,40},warningAt={50,95},distance={5,100},maxAuras={1,12},auraSize={14,32}}
 local skins={minimal=true,classic=true,moteve=true}
 local roles={auto=true,tank=true,dps=true}
@@ -97,14 +97,100 @@ function ns.DistanceStatus()
     end
     return text
 end
+-- Stacking: the client's own "Stacking Nameplates" motion (nameplateMotion 1, 0 = overlapping) spaces the base plates,
+-- and the enemy base plate is sized to the custom frame's footprint (ns.PlateFootprint) so the stacked slots fit it.
+-- Both are written out of combat only; in combat they wait for PLAYER_REGEN_ENABLED.
+-- While the addon is disabled, nameplateMotion is left to the client (Blizzard's Motion Type).
+function ns.ApplyStacking()
+    if not ns.db then return end
+    ns.stackingPending=false;ns.stackingFailure=nil
+    local fn=C_CVar and C_CVar.SetCVar or SetCVar
+    if not ns.db.enabled then
+        -- Not ours to set while disabled; the plate size below is restored by ApplyPlateSize.
+    elseif type(fn)~="function" then
+        ns.stackingFailure="A névtábla-rendezés nem állítható ezen a kliensen."
+    elseif ns.API(InCombatLockdown) then
+        ns.stackingPending=true
+    else
+        local ok,result=pcall(fn,"nameplateMotion",ns.db.stackPlates and "1" or "0")
+        if not ok or result==false then ns.stackingFailure="A névtábla-rendezés módosítása sikertelen; a kliens nem engedélyezte." end
+    end
+    ns.ApplyPlateSize()
+end
+local function ReadEnemySize()
+    local get=C_NamePlate and C_NamePlate.GetNamePlateEnemySize
+    local w,h=ns.API(get)
+    w,h=ns.Number(w),ns.Number(h)
+    if w and h and w>0 and h>0 then return {w,h} end
+end
+-- Re-applies the footprint after Blizzard's driver resets the enemy plate size (CVar or display changes).
+local function HookDriver()
+    if ns.driverHooked or type(hooksecurefunc)~="function" then return end
+    local driver=NamePlateDriverFrame
+    if ns.Secret(driver) or type(driver)~="table" or type(driver.UpdateNamePlateOptions)~="function" then return end
+    if pcall(hooksecurefunc,driver,"UpdateNamePlateOptions",function() ns.ApplyPlateSize(true) end) then ns.driverHooked=true end
+end
+-- fromDriver: Blizzard has just set its own size, which becomes the size to restore when stacking is turned off
+-- (read before ours is written, also when the write waits for the end of combat).
+function ns.ApplyPlateSize(fromDriver)
+    if not ns.db then return end
+    HookDriver()
+    ns.sizePending=false;ns.sizeFailure=nil
+    if fromDriver then ns.sizeRecapture=true end
+    local set=C_NamePlate and C_NamePlate.SetNamePlateEnemySize
+    local wanted=ns.db.enabled and ns.db.stackPlates
+    if type(set)~="function" then
+        if wanted then ns.sizeFailure="unavailable" end
+        ns.sizeApplied=false
+    elseif not wanted and not ns.sizeApplied then
+        -- Nothing of ours to undo; Blizzard keeps its own size.
+    elseif ns.API(InCombatLockdown) then
+        ns.sizePending=true
+    elseif wanted then
+        if ns.sizeRecapture or not ns.sizeOriginal then ns.sizeOriginal=ReadEnemySize() or ns.sizeOriginal end
+        ns.sizeRecapture=nil
+        local w,h=ns.PlateFootprint(ns.db)
+        local ok,result=pcall(set,w,h)
+        ns.sizeApplied=ok and result~=false
+        if not ns.sizeApplied then ns.sizeFailure="failed" end
+    else
+        ns.sizeApplied=false
+        local original=ns.sizeOriginal
+        if original then
+            if not pcall(set,original[1],original[2]) then ns.sizeFailure="restore" end
+        else ns.sizeFailure="restore" end
+    end
+    if ns.AnchorPlates then ns.AnchorPlates() end
+    if ns.UpdateOptions then ns.UpdateOptions() end
+end
+function ns.StackingStatus()
+    if not ns.db then return "" end
+    if ns.stackingPending or ns.sizePending then return "Névtábla-rendezés: alkalmazás harc után." end
+    if ns.stackingFailure then return ns.stackingFailure end
+    if ns.sizeFailure=="restore" then return "A Blizzard névtábla-terület mérete /reload után áll vissza." end
+    if not ns.db.enabled then return "Névtábla-rendezés: az addon ki van kapcsolva, a Blizzard Motion Type beállítása érvényes." end
+    if not ns.db.stackPlates then return "Névtáblák: átfedő (Blizzard nameplateMotion 0)." end
+    if ns.sizeFailure=="unavailable" then return "Egymás fölé rendezve; a kliens nem engedi a terület méretezését, a keretek részben átfedhetnek." end
+    if ns.sizeFailure=="failed" then return "Egymás fölé rendezve; a terület méretezése sikertelen, a keretek részben átfedhetnek." end
+    if ns.sizeApplied then
+        local w,h=ns.PlateFootprint(ns.db)
+        return string.format("Egymás fölé rendezve, névtábla-terület: %d×%d.",math.floor(w+0.5),math.floor(h+0.5))
+    end
+    return "Egymás fölé rendezve (Blizzard nameplateMotion 1)."
+end
 ns:On("PLAYER_LOGIN",ns.ApplyDistance)
-ns:On("PLAYER_REGEN_ENABLED",function() if ns.distancePending then ns.ApplyDistance() end end)
+ns:On("PLAYER_LOGIN",ns.ApplyStacking)
+ns:On("PLAYER_REGEN_ENABLED",function()
+    if ns.distancePending then ns.ApplyDistance() end
+    if ns.stackingPending then ns.ApplyStacking() elseif ns.sizePending then ns.ApplyPlateSize() end
+end)
 function ns.SetOption(key,value)
     if not ns.db then return false end
     local validated=Validate(key,value)
     if validated==nil then return false end
     ns.db[key]=validated
     if key=="distance" then ns.ApplyDistance() end
+    if key=="stackPlates" or key=="enabled" then ns.ApplyStacking() end
     if ns.ApplyOptions then ns.ApplyOptions() end
     if ns.UpdateOptions then ns.UpdateOptions() end
     return true

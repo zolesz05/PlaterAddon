@@ -24,6 +24,40 @@ function ns.AuraLayout(size)
     size=ns.Number(size) or (ns.defaults and ns.defaults.auraSize) or 19
     return size,size+4,size+12,ns.AURAS_PER_ROW*size+(ns.AURAS_PER_ROW-1)*4
 end
+-- The area a custom plate can draw on, for the stacked base plate (ns.ApplyPlateSize). In plate units, around the bar
+-- (width x height): above, the name row (4 px gap + 13 px font; combo dots and quest badge fit in it) and, when shown,
+-- the debuff rows from y=30 (one row per six icons of maxAuras); below, the cast bar (4 + 13) and the threat text
+-- (23 + 10 under a cast, 5 + 10 without); left, the raid marker (18 + 18); right, the target arrow (4 + 12) or the
+-- debuff row when it is wider than the bar. Returns the base size (width, height) in base-plate units, centred and
+-- times scale, plus |offset| on both sides so the user's vertical offset stays in the slot, and the y shift that
+-- puts the frame's visual centre on the base plate's centre (plate units, before the offset).
+function ns.PlateFootprint(db)
+    local d=db or ns.db
+    local width,height,scale=d.width,d.height,d.scale
+    local above,below=17,3
+    local auraRight=0
+    if d.showAuras then
+        local size,column,row=ns.AuraLayout(d.auraSize)
+        local count=math.max(1,d.maxAuras or 1)
+        local rows=math.ceil(count/ns.AURAS_PER_ROW)
+        above=math.max(above,30+size+(rows-1)*row)
+        local perRow=math.min(count,ns.AURAS_PER_ROW)
+        auraRight=perRow*column-4-width/2
+    end
+    if d.showCast then below=math.max(below,4+13) end
+    if d.showAggro or d.showThreatPercent then below=math.max(below,(d.showCast and 23 or 5)+10) end
+    local halfWidth=math.max(width/2+36,width/2+16,auraRight)
+    local offset=math.abs(d.offset or 0)
+    return 2*halfWidth*scale,(above+height+below+2*offset)*scale,(below-above)/2
+end
+-- The custom frame's y offset from the base plate's centre: the user's offset, plus the footprint's centring shift
+-- while the base plate has the footprint's size (stacked).
+function ns.PlateAnchorY(db,stacked)
+    local d=db or ns.db
+    if not stacked then return d.offset end
+    local _,_,shift=ns.PlateFootprint(d)
+    return d.offset+shift
+end
 -- Level number colour: the client's difficulty colour, red for skull (-1) mobs, otherwise the skin accent.
 function ns.LevelColor(level,skin)
     local s=ns.Skins[skin] or ns.Skins.moteve

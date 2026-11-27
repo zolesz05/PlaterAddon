@@ -469,6 +469,7 @@ test("detach_and_apply_options",function()
     StubCreateFrame()
     local Dots,ns=Load()
     ns.StopNativeAuras=function() end
+    ns.ApplyPlateSize=function() end -- Core.lua's stacked base-plate size, called by ns.ApplyOptions
     assert(loadfile(root.."/MotevePlates/Combo.lua"))("MotevePlates",ns) -- TOC order: Plates.lua's Detach uses ns.ShowComboPoints
     assert(loadfile(root.."/MotevePlates/Plates.lua"))("MotevePlates",ns)
     local f=Obj({unit="nameplate1",native=false,nativeRaid=false,dot=Obj({shown=true}),questBadge=Obj(),cast=Obj({icon=Obj()}),raid=Obj(),auras={Obj()},

@@ -7,7 +7,7 @@ floatingBackground:SetAllPoints();floatingBackground:SetColorTexture(0.035,0.04,
 ns.Options=P
 local scroll=CreateFrame("ScrollFrame",nil,P,"UIPanelScrollFrameTemplate")
 scroll:SetPoint("TOPLEFT",0,0);scroll:SetPoint("BOTTOMRIGHT",-28,0)
-local body=CreateFrame("Frame",nil,scroll);body:SetSize(620,830);scroll:SetScrollChild(body)
+local body=CreateFrame("Frame",nil,scroll);body:SetSize(620,900);scroll:SetScrollChild(body)
 local function Text(parent,x,y,text,size,color)
     local t=ns.Font(parent,size or 13,false);t:SetPoint("TOPLEFT",x,y);t:SetJustifyH("LEFT");t:SetText(text)
     if color then t:SetTextColor(color[1],color[2],color[3]) end
@@ -49,7 +49,7 @@ local definitions={
     {"healthText","Életerő értéke"},{"healthPercent","Életerő százaléka"},
     {"showLevel","Szint és elit jelzés"},{"dimOthers","Nem célzott ellenfelek halványítása"},
     {"showDotPrediction","DoT-sebzés előrejelzése"},{"showQuest","Küldetésmobok kiemelése"},
-    {"showComboPoints","Kombópontok a célponton"},
+    {"showComboPoints","Kombópontok a célponton"},{"stackPlates","Névtáblák egymás fölé rendezése"},
 }
 for i,definition in ipairs(definitions) do
     local key,label=definition[1],definition[2]
@@ -58,6 +58,7 @@ for i,definition in ipairs(definitions) do
     -- The grid ends at y=-418, above the legend at y=-458; later switches sit below the reset button.
     if key=="showQuest" then cb:SetPoint("TOPLEFT",320,-734)
     elseif key=="showComboPoints" then cb:SetPoint("TOPLEFT",320,-764)
+    elseif key=="stackPlates" then cb:SetPoint("TOPLEFT",20,-826)
     else cb:SetPoint("TOPLEFT",20+((i-1)%2)*300,-268-math.floor((i-1)/2)*30) end
     local stock=cb.Text or cb.text;if stock and stock.SetText then stock:SetText("") end
     local t=ns.Font(cb,12,false);t:SetPoint("LEFT",cb,"RIGHT",3,0);t:SetWidth(260);t:SetText(label);t:SetJustifyH("LEFT")
@@ -116,12 +117,14 @@ Text(body,20,-697,"Ha az automatikus felismerés nem talál tank szerepet, vála
 Text(body,20,-714,"A százalék és az aggro állapota a kliens által hozzáférhető adatoktól függ.",11,{0.65,0.68,0.79})
 Button(body,20,-734,160,"Alapbeállítások",function()
     for key,value in pairs(ns.defaults) do ns.db[key]=value end
-    ns.ApplyDistance()
+    ns.ApplyDistance();ns.ApplyStacking()
     ns.ApplyOptions();ns.UpdateOptions()
 end)
--- Left of the combo-point switch (320,-764); the hint below it is why body is 830 tall.
+-- Left of the combo-point switch (320,-764); the stacking switch and its status line below are why body is 900 tall.
 Adjust(20,-768,"auraSize","Debuff ikonméret",1,function(v) return tostring(v).." px" end)
 Text(body,20,-800,"A Blizzard AuraContainer debuffjai az új méretet /reload után veszik fel.",11,{0.65,0.68,0.79})
+local stackingStatus=Text(body,20,-856,"",11,{0.75,0.79,0.89})
+stackingStatus:SetWidth(575);stackingStatus:SetHeight(32)
 local function Demo(f,skin)
     local d={};for key,value in pairs(ns.db) do d[key]=value end
     d.width=170;d.height=17;d.showLevel=true
@@ -171,6 +174,7 @@ function ns.UpdateOptions()
     end
     for key,v in pairs(values) do v.text:SetText(v.format(ns.db[key])) end
     distanceStatus:SetText(ns.DistanceStatus())
+    stackingStatus:SetText(ns.StackingStatus())
 end
 P:SetScript("OnShow",function() ns.UpdateOptions() end)
 ns:On("MP_INIT",ns.UpdateOptions)

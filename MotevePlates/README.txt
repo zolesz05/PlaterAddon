@@ -1,4 +1,4 @@
-Moteve Plates 0.2.13 – WoW Forever / Interface 16001
+Moteve Plates 0.2.14 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -23,6 +23,16 @@ BEÁLLÍTÁSOK
   A szerver ennél rövidebb tényleges megjelenítési távolságot is előírhat.
   Első frissítéskor a meglévő kliensbeállítást veszi át. Utána a mentett értéket alkalmazza belépéskor.
   Harc közben a módosítást elhalasztja a harc végéig. Ez a játék közös névtábla-beállítása.
+  Névtáblák egymás fölé rendezése: új telepítésnél és frissítéskor bekapcsolva. Sűrű csoportban minden
+  ellenséges névtábla saját függőleges helyet kap, mint a Blizzard „Stacking Nameplates” módjában.
+  Bekapcsolva belépéskor a játék nameplateMotion beállítását 1-re (egymás fölé) állítja, kikapcsolva 0-ra
+  (átfedő); ez felülírja a Blizzard felület Motion Type beállítását. A Blizzard alap-névtábla méretét
+  (kattintási területét) akkorára állítja, amekkora az addon kerete a névvel, a debuffsorokkal, a cast sávval,
+  az aggroszöveggel, a raid jellel, a méretaránnyal és a függőleges eltolással együtt (alapbeállítással
+  262×130), így az egymás fölé rakott helyek nem fedik egymást; a keretet a hely közepére igazítja.
+  Kikapcsolva, vagy ha az addon ki van kapcsolva, a Blizzard saját mérete áll vissza. Harc közben a
+  módosítást elhalasztja a harc végéig. Ha az addon ki van kapcsolva, a nameplateMotion beállításhoz nem nyúl,
+  a Blizzard Motion Type beállítása érvényes. A kapcsoló alatti sor mutatja az állapotot.
   A skin, a szerepkör, a méret és a kapcsolók a MotevePlatesDB változóban megmaradnak.
 
 AGGRO
@@ -216,6 +226,12 @@ ELLENŐRZÉS
   érték cseréjét és a tört érték lefelé kerekítését; az új lua tools/test_aura_layout.lua a közös
   elrendezést (19 px-nél a korábbi 19/23/31/134), a tartalék ikonok méretét és helyét, valamint a natív
   AuraContainer gombméretét és sorszélességét ellenőrzi. Élő kliensen még nem teszteltük.
+  0.2.14: új beállítás, Névtáblák egymás fölé rendezése (alapból bekapcsolva). Az alapbeállítások tesztje
+  (lua tools/test_defaults.lua) az alapértéket, a mentett érték megtartását és a hibás érték cseréjét; az új
+  lua tools/test_stacking.lua a nameplateMotion írását (1 bekapcsolva, 0 kikapcsolva, harc közben a harc
+  végéig halasztva), a Blizzard névtáblaméret beállítását és visszaállítását, a Blizzard-féle méretváltás
+  utáni újraírást, a hiányzó vagy elutasító kliens-API-t, a keret helyének számítását (debuffsorok, cast sáv,
+  aggroszöveg, méretarány, eltolás) és a keret középre igazítását ellenőrzi. Élő kliensen még nem teszteltük.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK
