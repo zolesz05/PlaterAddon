@@ -7,7 +7,7 @@ floatingBackground:SetAllPoints();floatingBackground:SetColorTexture(0.035,0.04,
 ns.Options=P
 local scroll=CreateFrame("ScrollFrame",nil,P,"UIPanelScrollFrameTemplate")
 scroll:SetPoint("TOPLEFT",0,0);scroll:SetPoint("BOTTOMRIGHT",-28,0)
-local body=CreateFrame("Frame",nil,scroll);body:SetSize(620,800);scroll:SetScrollChild(body)
+local body=CreateFrame("Frame",nil,scroll);body:SetSize(620,830);scroll:SetScrollChild(body)
 local function Text(parent,x,y,text,size,color)
     local t=ns.Font(parent,size or 13,false);t:SetPoint("TOPLEFT",x,y);t:SetJustifyH("LEFT");t:SetText(text)
     if color then t:SetTextColor(color[1],color[2],color[3]) end
@@ -119,6 +119,9 @@ Button(body,20,-734,160,"Alapbeállítások",function()
     ns.ApplyDistance()
     ns.ApplyOptions();ns.UpdateOptions()
 end)
+-- Left of the combo-point switch (320,-764); the hint below it is why body is 830 tall.
+Adjust(20,-768,"auraSize","Debuff ikonméret",1,function(v) return tostring(v).." px" end)
+Text(body,20,-800,"A Blizzard AuraContainer debuffjai az új méretet /reload után veszik fel.",11,{0.65,0.68,0.79})
 local function Demo(f,skin)
     local d={};for key,value in pairs(ns.db) do d[key]=value end
     d.width=170;d.height=17;d.showLevel=true

@@ -1,4 +1,4 @@
-Moteve Plates 0.2.12 – WoW Forever / Interface 16001
+Moteve Plates 0.2.13 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -117,6 +117,9 @@ TOVÁBBI KIJELZÉSEK
   Cast és channel sáv idővel, varázslatikonnal; a nem szakítható / ismeretlen állapotú sáv szürke.
   Alapból legfeljebb 8 saját debuff ikonnal és az elérhető időzítési adatokkal.
   A /mp panelen a Debuffok száma 1–12 között állítható; 6 ikon után új sorba tördel, felfelé.
+  A Debuff ikonméret 14–32 px között, 1 px-es lépésekben állítható (alapból 19 px); az ikonok közti
+  távolság a mérettel együtt nő. Az előnézet és a tartalék ikonok azonnal, a Blizzard AuraContainer
+  ikonjai /reload után veszik fel az új méretet. 32 px-nél egy hatos sor (212 px) túllóghat a tábla jobb szélén.
   Forever kliensen a Blizzard AuraContainer / CustomAuraButton rendszere kezeli az élő ikonokat,
   a stackeket és a cooldown rajzolatát; az addon nem olvassa ki a védett auraadatokat.
   A hátralévő idő egyetlen számként, az ikonon belül látszik (a cooldown saját visszaszámlálója),
@@ -208,6 +211,11 @@ ELLENŐRZÉS
   eredeti jelzőnél false), a jel keretszintjének a jelkeret fölé emelését és visszaállítását (kiolvashatatlan
   szintnél érintetlenül hagyva), valamint a /mp raid „Átemelt Blizzard-jel: csak alfa” sora.
   Csak helyi stubokkal ellenőrizve, élő kliensen még nem teszteltük.
+  0.2.13: új beállítás, Debuff ikonméret (14–32 px, alapból 19). Az alapbeállítások tesztje
+  (lua tools/test_defaults.lua) az alapértéket, a mentett érték megtartását, a 14–32 közé vágást, a hibás
+  érték cseréjét és a tört érték lefelé kerekítését; az új lua tools/test_aura_layout.lua a közös
+  elrendezést (19 px-nél a korábbi 19/23/31/134), a tartalék ikonok méretét és helyét, valamint a natív
+  AuraContainer gombméretét és sorszélességét ellenőrzi. Élő kliensen még nem teszteltük.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK

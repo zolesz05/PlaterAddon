@@ -2,7 +2,7 @@
 
 **Moteve Plates** egy önálló World of Warcraft névtábla-addon a WoW Forever klienshez. Az ellenfelek fölött megjelenő névtáblákon életerőt, varázslást, saját debuffokat és szerepkörfüggő aggrojelzést mutat.
 
-**Aktuális verzió: 0.2.12**
+**Aktuális verzió: 0.2.13**
 
 [Legfrissebb addon letöltése (ZIP)](downloads/MotevePlates.zip?raw=true)
 
@@ -153,6 +153,8 @@ A 0.2.11-es verzióban a raid target marker akkor is az addon saját ikonjával 
 
 A 0.2.12-es verzióban a Blizzard saját raid jele akkor is látszik, ha a kliens a jel keretének horgonyait sem adja ki (védett vagy hibás `GetNumPoints`/`GetPoint`, a `/mp raid` korábban `unavailable:points-unreadable` állapotot írt). Ilyenkor az addon a jelet nem mozgatja át, csak „csak alfa” módban figyelmen kívül hagyatja vele az elrejtett gyári névtábla átlátszóságát, így a jel az eredeti, Blizzard által adott helyén jelenik meg; és egy keretszinttel a saját jelkeret fölé emeli, hogy a saját névtábla ne takarja; a névtábla elengedésekor vagy sima sorszámnál csak ezt a jelzőt és a keretszintet állítja vissza (kiolvashatatlan keretszintnél azt nem módosítja). Ismert korlát: ebben a módban a jel nem a saját jelkeretben, hanem a Blizzard által adott helyen áll, így más névtábla vagy más réteg (strata) eltakarhatja. Új állapotok: `native-alpha` és `icon:secret+native-alpha`; a `/mp raid` ilyenkor „Átemelt Blizzard-jel: csak alfa” sort ír. A `tools/test_raid_marker.lua` helyi stubokkal ellenőrzi ezt az ágat. Élő kliensen még nem teszteltük. Ha a `/mp raid` kimenetében nincs „Titkos sorszám saját ikonja” sor, régebbi (0.2.11 előtti) verzió fut: telepítsd újra a `downloads/MotevePlates.zip`-ből.
 
+A 0.2.13-as verzióban a saját debuffok (a DoT-ok) ikonjainak mérete a `/mp` panel **Debuff ikonméret** sorában 14 és 32 px között, 1 px-es lépésekben állítható (alapból a korábbi 19 px); az ikonok közti távolság a mérettel együtt nő, és továbbra is 6 ikon fér egy sorba. Az előnézet és a tartalék ikonok azonnal, a Blizzard `AuraContainer` ikonjai `/reload` után veszik fel az új méretet. 32 px-nél egy hatos sor (212 px) túllóghat a névtábla jobb szélén. Az **Alapbeállítások** gomb 19 px-re állítja vissza. A `tools/test_defaults.lua` és az új `tools/test_aura_layout.lua` helyi stubokkal ellenőrzi a mentett érték ellenőrzését, a közös elrendezést és mindkét aura-megjelenítő méretét. Élő kliensen még nem teszteltük.
+
 ## Hibajelentés
 
 Hibát az [Issues oldalon](https://github.com/zolesz05/PlaterAddon/issues) jelezhetsz. Add meg a kliens és az addon verzióját, a kiválasztott skint és szerepkört, valamint a reprodukálás lépéseit. A `/mp errors`, `/mp auras` és `/mp raid` kimenete, illetve egy képernyőkép segíthet.
@@ -167,7 +169,7 @@ A legfrissebb telepíthető csomag frissítése a repository gyökeréből:
 python tools/package_addon.py
 ```
 
-A DoT-logika, a szintszín, a debuff-idő, a DoT-szín, az alapbeállítások, a kombópontok és a raid target marker tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
+A DoT-logika, a szintszín, a debuff-idő, a DoT-szín, az alapbeállítások, a kombópontok, a raid target marker és a debuff ikonméret tesztjei Lua 5.1 vagy újabb értelmezővel futtathatók a repository gyökeréből; hiba esetén nem nulla kóddal lépnek ki:
 
 ```sh
 lua tools/test_dots.lua
@@ -177,6 +179,7 @@ lua tools/test_dot_color.lua
 lua tools/test_defaults.lua
 lua tools/test_combo_points.lua
 lua tools/test_raid_marker.lua
+lua tools/test_aura_layout.lua
 ```
 
 A csomagoló ellenőrzi a TOC bejegyzéseit és a ZIP tartalmát, lecseréli a `downloads/MotevePlates.zip` fájlt, és eltávolítja a korábbi verziószámos addoncsomagokat ebből a mappából. A forrást, a ZIP-et és a README-t együtt kell feltölteni.

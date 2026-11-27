@@ -16,6 +16,14 @@ function ns.DotColor(skin,choice)
     if not c then c=(ns.Skins[skin] or ns.Skins.moteve).dot end
     return c[1],c[2],c[3]
 end
+-- Own-debuff icon layout shared by the fallback icons (StylePlate) and the native AuraContainer (Auras.lua): six icons
+-- per row, 4 px between icons and 12 px between rows. Returns icon size, column step, row step and row width.
+-- A missing or non-number size falls back to the default (19, the size before auraSize existed).
+ns.AURAS_PER_ROW=6
+function ns.AuraLayout(size)
+    size=ns.Number(size) or (ns.defaults and ns.defaults.auraSize) or 19
+    return size,size+4,size+12,ns.AURAS_PER_ROW*size+(ns.AURAS_PER_ROW-1)*4
+end
 -- Level number colour: the client's difficulty colour, red for skull (-1) mobs, otherwise the skin accent.
 function ns.LevelColor(level,skin)
     local s=ns.Skins[skin] or ns.Skins.moteve
@@ -107,12 +115,12 @@ function ns.CreatePlate(parent)
     f.combo:Hide()
     f.auras={}
     for i=1,12 do
-        local a=CreateFrame("Frame",nil,f,"BackdropTemplate");a:SetSize(19,19);a:EnableMouse(false)
+        local a=CreateFrame("Frame",nil,f,"BackdropTemplate");a:EnableMouse(false)
         a.icon=a:CreateTexture(nil,"ARTWORK");a.icon:SetAllPoints();a.icon:SetTexCoord(0.08,0.92,0.08,0.92)
         a.cooldown=CreateFrame("Cooldown",nil,a,"CooldownFrameTemplate");a.cooldown:SetAllPoints();a.cooldown:EnableMouse(false)
         if a.cooldown.SetHideCountdownNumbers then a.cooldown:SetHideCountdownNumbers(false) end
         a.count=ns.Font(a,9,true);a.count:SetPoint("TOPRIGHT",1,0)
-        a:SetPoint("BOTTOMLEFT",f,"TOPLEFT",((i-1)%6)*23,30+math.floor((i-1)/6)*31);a:Hide()
+        a:Hide() -- size and position come from auraSize in StylePlate
         f.auras[i]=a
     end
     return f
@@ -151,6 +159,11 @@ function ns.StylePlate(f,skin,options)
     f.combo.count=nil;f.nameWidth=d.width;f.nameNarrow=false
     f.targetLeft:SetTextColor(s.accent[1],s.accent[2],s.accent[3])
     f.targetRight:SetTextColor(s.accent[1],s.accent[2],s.accent[3])
+    local size,column,row=ns.AuraLayout(d.auraSize)
+    for i,a in ipairs(f.auras) do
+        a:SetSize(size,size);a:ClearAllPoints()
+        a:SetPoint("BOTTOMLEFT",f,"TOPLEFT",((i-1)%ns.AURAS_PER_ROW)*column,30+math.floor((i-1)/ns.AURAS_PER_ROW)*row)
+    end
 end
 function ns.TargetStyle(f,target,hasTarget)
     if f.lastTarget~=target then Backdrop(f.chrome,f.skin,target);f.lastTarget=target end

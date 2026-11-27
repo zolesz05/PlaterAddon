@@ -4,8 +4,9 @@ local _,ns=...
 ns:On("MP_INIT",function()
     ns.API(C_AddOns and C_AddOns.LoadAddOn or LoadAddOn,"Blizzard_AuraContainer")
 end)
-local function InitializeButton(button)
-    button:SetSize(19,19);button:EnableMouse(false)
+-- size is fixed per container: buttons initialised later in the session keep the size their container was built with.
+local function InitializeButton(button,size)
+    button:SetSize(size,size);button:EnableMouse(false)
     local icon=button:CreateTexture(nil,"ARTWORK")
     icon:SetAllPoints();icon:SetTexCoord(0.08,0.92,0.08,0.92)
     local cooldown=CreateFrame("Cooldown",nil,button,"CooldownFrameTemplate")
@@ -20,6 +21,8 @@ local function CreateContainer(f)
     local ok,c=pcall(CreateFrame,"AuraContainer",nil,f,"CustomAuraContainerTemplate")
     if not ok or not c then return end
     if type(c.AddAuraGroup)~="function" then c:Hide();return end
+    -- The container is built once per plate (f.auraAttempted), so a changed auraSize applies after /reload.
+    local size,_,_,rowWidth=ns.AuraLayout(ns.db.auraSize)
     c:SetEnabled(false);c:Hide()
     local configured=ns.Safe("native aura setup",function()
         c:EnableMouse(false)
@@ -29,13 +32,13 @@ local function CreateContainer(f)
         local anchor=c.SetFlowLayoutAnchorPoint or c.SetAuraLayoutAnchorPoint
         local lineWidth=c.SetFlowLayoutMaximumLineSize or c.SetAuraLayoutRowWidth
         if anchor then anchor(c,"BOTTOMLEFT") end
-        if lineWidth then lineWidth(c,134) end
+        if lineWidth then lineWidth(c,rowWidth) end
         local growth=c.SetFlowLayoutGrowthDirection or c.SetAuraLayoutGrowthDirection
         if growth and AnchorUtil and AnchorUtil.FlowDirection then
             growth(c,AnchorUtil.FlowDirection.Right,AnchorUtil.FlowDirection.Up)
         end
         c:AddAuraGroup("ownDebuffs","HARMFUL|PLAYER",{
-            maxFrameCount=ns.db.maxAuras,initializeFrame=InitializeButton,
+            maxFrameCount=ns.db.maxAuras,initializeFrame=function(button) InitializeButton(button,size) end,
             layout={elementSpacing=4,lineSpacing=12},
         })
     end)
