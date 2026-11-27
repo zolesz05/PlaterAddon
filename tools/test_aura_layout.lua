@@ -4,8 +4,8 @@
 -- Both aura paths use it: the fallback icons are sized and placed in ns.StylePlate, and the native AuraContainer
 -- (Auras.lua) takes its button size and row width from it when the container is built (applied after /reload).
 -- Core.lua, Skins.lua and Auras.lua are loaded in TOC order against a stub CreateFrame whose frames record every
--- The stack count of both paths sits on an overlay above the cooldown, bottom-right (ns.CreateAuraCount).
 -- method call. Exits non-zero on any failure.
+-- The stack count of both paths sits on an overlay above the cooldown, bottom-right (ns.CreateAuraCount).
 local root=(arg and arg[0] or ""):match("^(.-)[/\\]?tools[/\\][^/\\]+$") or "."
 if root=="" then root="." end
 local unpack=unpack or table.unpack
