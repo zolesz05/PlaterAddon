@@ -1,4 +1,4 @@
-Moteve Plates 0.2.14 – WoW Forever / Interface 16001
+Moteve Plates 0.2.15 – WoW Forever / Interface 16001
 
 Önálló névtábla-addon három váltható skinnel és szerepkörfüggő aggrojelzéssel.
 A három előzetes látványterv alapján készült. A Plater telepítése nem szükséges.
@@ -132,6 +132,8 @@ TOVÁBBI KIJELZÉSEK
   ikonjai /reload után veszik fel az új méretet. 32 px-nél egy hatos sor (212 px) túllóghat a tábla jobb szélén.
   Forever kliensen a Blizzard AuraContainer / CustomAuraButton rendszere kezeli az élő ikonokat,
   a stackeket és a cooldown rajzolatát; az addon nem olvassa ki a védett auraadatokat.
+  Egynél több stacknél a stackszám az ikon jobb alsó sarkában, a cooldown rajzolata és visszaszámlálója
+  fölött látszik (körvonalas, az ikonmérettel nő), mint a Blizzard célpontkeretén.
   A hátralévő idő egyetlen számként, az ikonon belül látszik (a cooldown saját visszaszámlálója),
   az ikon alatt nincs külön időszöveg. Ez a szám a játék cooldown-szám beállításától függ
   (Interface beállítások, „cooldown számok mutatása”); ha az ki van kapcsolva, az ikonon nem látszik idő.
@@ -232,6 +234,10 @@ ELLENŐRZÉS
   végéig halasztva), a Blizzard névtáblaméret beállítását és visszaállítását, a Blizzard-féle méretváltás
   utáni újraírást, a hiányzó vagy elutasító kliens-API-t, a keret helyének számítását (debuffsorok, cast sáv,
   aggroszöveg, méretarány, eltolás) és a keret középre igazítását ellenőrzi. Élő kliensen még nem teszteltük.
+  0.2.15: a debuff ikonok stackszáma a jobb alsó sarokba került, a cooldown fölötti saját keretre, így a
+  visszaszámláló és a cooldown rajzolata nem takarja el. A lua tools/test_aura_layout.lua a tartalék és a natív
+  ikonokon a stackszám keretét (az ikon gyermeke, egy keretszinttel a cooldown fölött), a jobb alsó horgonyt, a
+  jobbra igazítást és az ikonmérethez igazodó betűméretet ellenőrzi. Élő kliensen még nem teszteltük.
   A tényleges WoW Forever kliensben a megjelenést és a harci állapotokat még ellenőrizni kell.
 
 BETŰTÍPUSOK

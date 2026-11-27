@@ -12,10 +12,17 @@ local function InitializeButton(button,size)
     local cooldown=CreateFrame("Cooldown",nil,button,"CooldownFrameTemplate")
     cooldown:SetAllPoints();cooldown:EnableMouse(false)
     if cooldown.SetHideCountdownNumbers then cooldown:SetHideCountdownNumbers(false) end
-    local count=ns.Font(button,9,true);count:SetPoint("TOPRIGHT",1,0)
+    -- The count sits on an overlay above the cooldown (ns.CreateAuraCount), not on the button under it.
+    local count,overlay=ns.CreateAuraCount(button,cooldown,size)
     button:SetIcon(icon)
     button:SetDurationCooldown(cooldown)
-    button:SetApplicationCount(count)
+    if not ns.Safe("aura count",button.SetApplicationCount,button,count) then
+        -- Fallback if the client only accepts the button's own FontString: bottom-right still, but under the cooldown.
+        overlay:Hide()
+        count=ns.Font(button,9,true);ns.SizeAuraCount(count,size)
+        count:SetPoint("BOTTOMRIGHT",1,-1);count:SetJustifyH("RIGHT")
+        button:SetApplicationCount(count)
+    end
 end
 local function CreateContainer(f)
     local ok,c=pcall(CreateFrame,"AuraContainer",nil,f,"CustomAuraContainerTemplate")

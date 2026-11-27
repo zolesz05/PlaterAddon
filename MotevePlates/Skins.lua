@@ -79,6 +79,26 @@ function ns.Font(parent,size,bold)
     f:SetTextColor(0.95,0.95,0.98)
     return f
 end
+-- Stack count of an own-debuff icon, shared by the fallback icons (CreatePlate) and the native AuraContainer buttons
+-- (Auras.lua). A child frame always draws above its parent's regions, so a FontString on the icon frame would sit
+-- under the icon's full-size Cooldown child (swipe and countdown). The count lives on an overlay frame, a sibling of
+-- the cooldown one level above it (not its child: the fallback hides the cooldown for auras without a duration), in
+-- the bottom-right corner like Blizzard's target-frame auras, outlined and sized from the icon size.
+function ns.AuraCountSize(size)
+    local s=ns.Number(size) or (ns.defaults and ns.defaults.auraSize) or 19
+    return math.max(10,math.floor(s*0.55))
+end
+function ns.SizeAuraCount(count,size)
+    count:SetFont(ns.MEDIA.."Fonts\\Barlow-SemiBold.ttf",ns.AuraCountSize(size),"OUTLINE")
+end
+function ns.CreateAuraCount(icon,cooldown,size)
+    local overlay=CreateFrame("Frame",nil,icon)
+    overlay:SetAllPoints();overlay:EnableMouse(false)
+    overlay:SetFrameLevel(cooldown:GetFrameLevel()+1)
+    local count=ns.Font(overlay,9,true);ns.SizeAuraCount(count,size)
+    count:SetPoint("BOTTOMRIGHT",1,-1);count:SetJustifyH("RIGHT")
+    return count,overlay
+end
 local function Backdrop(frame,skin,target,noFill)
     local s=ns.Skins[skin]
     frame:SetBackdrop({bgFile=WHITE,edgeFile=skin=="classic" and "Interface\\Tooltips\\UI-Tooltip-Border" or WHITE,
@@ -153,7 +173,7 @@ function ns.CreatePlate(parent)
         a.icon=a:CreateTexture(nil,"ARTWORK");a.icon:SetAllPoints();a.icon:SetTexCoord(0.08,0.92,0.08,0.92)
         a.cooldown=CreateFrame("Cooldown",nil,a,"CooldownFrameTemplate");a.cooldown:SetAllPoints();a.cooldown:EnableMouse(false)
         if a.cooldown.SetHideCountdownNumbers then a.cooldown:SetHideCountdownNumbers(false) end
-        a.count=ns.Font(a,9,true);a.count:SetPoint("TOPRIGHT",1,0)
+        a.count,a.countFrame=ns.CreateAuraCount(a,a.cooldown)
         a:Hide() -- size and position come from auraSize in StylePlate
         f.auras[i]=a
     end
@@ -195,7 +215,7 @@ function ns.StylePlate(f,skin,options)
     f.targetRight:SetTextColor(s.accent[1],s.accent[2],s.accent[3])
     local size,column,row=ns.AuraLayout(d.auraSize)
     for i,a in ipairs(f.auras) do
-        a:SetSize(size,size);a:ClearAllPoints()
+        a:SetSize(size,size);a:ClearAllPoints();ns.SizeAuraCount(a.count,size)
         a:SetPoint("BOTTOMLEFT",f,"TOPLEFT",((i-1)%ns.AURAS_PER_ROW)*column,30+math.floor((i-1)/ns.AURAS_PER_ROW)*row)
     end
 end
