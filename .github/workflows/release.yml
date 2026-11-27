@@ -1,0 +1,68 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Read version
+        id: version
+        run: |
+          version="$(sed -n 's/^## Version:[[:space:]]*\([^[:space:]]*\).*/\1/p' MotevePlates/MotevePlates.toc | tr -d '\r')"
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          status=0
+          git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null || status=$?
+          case "$status" in
+            0) echo "exists=true" >> "$GITHUB_OUTPUT"
+               echo "Tag v$version already exists; nothing to publish." ;;
+            2) echo "exists=false" >> "$GITHUB_OUTPUT" ;;
+            *) echo "git ls-remote failed with status $status" >&2; exit "$status" ;;
+          esac
+
+      - name: Install Lua 5.1
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1
+
+      - name: Tests
+        if: steps.version.outputs.exists == 'false'
+        run: |
+          for test in tools/test_*.lua; do
+            echo "::group::$test"
+            lua5.1 "$test"
+            echo "::endgroup::"
+          done
+          python3 tools/test_check_version.py
+          python3 tools/check_version.py
+
+      - name: Package
+        if: steps.version.outputs.exists == 'false'
+        run: python3 tools/package_addon.py
+
+      - name: Create release
+        if: steps.version.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          python3 tools/check_version.py --notes > "$RUNNER_TEMP/notes.md"
+          gh release create "v$VERSION" dist/MotevePlates.zip \
+            --title "Moteve Plates $VERSION" \
+            --notes-file "$RUNNER_TEMP/notes.md" \
+            --target "$GITHUB_SHA"
