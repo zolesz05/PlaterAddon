@@ -31,7 +31,8 @@ BEÁLLÍTÁSOK
   az aggroszöveggel, a raid jellel, a méretaránnyal és a függőleges eltolással együtt (alapbeállítással
   262×130), így az egymás fölé rakott helyek nem fedik egymást; a keretet a hely közepére igazítja.
   Kikapcsolva, vagy ha az addon ki van kapcsolva, a Blizzard saját mérete áll vissza. Harc közben a
-  módosítást elhalasztja a harc végéig. A kapcsoló alatti sor mutatja az állapotot.
+  módosítást elhalasztja a harc végéig. Ha az addon ki van kapcsolva, a nameplateMotion beállításhoz nem nyúl,
+  a Blizzard Motion Type beállítása érvényes. A kapcsoló alatti sor mutatja az állapotot.
   A skin, a szerepkör, a méret és a kapcsolók a MotevePlatesDB változóban megmaradnak.
 
 AGGRO

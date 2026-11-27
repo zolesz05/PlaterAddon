@@ -100,11 +100,14 @@ end
 -- Stacking: the client's own "Stacking Nameplates" motion (nameplateMotion 1, 0 = overlapping) spaces the base plates,
 -- and the enemy base plate is sized to the custom frame's footprint (ns.PlateFootprint) so the stacked slots fit it.
 -- Both are written out of combat only; in combat they wait for PLAYER_REGEN_ENABLED.
+-- While the addon is disabled, nameplateMotion is left to the client (Blizzard's Motion Type).
 function ns.ApplyStacking()
     if not ns.db then return end
     ns.stackingPending=false;ns.stackingFailure=nil
     local fn=C_CVar and C_CVar.SetCVar or SetCVar
-    if type(fn)~="function" then
+    if not ns.db.enabled then
+        -- Not ours to set while disabled; the plate size below is restored by ApplyPlateSize.
+    elseif type(fn)~="function" then
         ns.stackingFailure="A névtábla-rendezés nem állítható ezen a kliensen."
     elseif ns.API(InCombatLockdown) then
         ns.stackingPending=true
@@ -165,6 +168,7 @@ function ns.StackingStatus()
     if ns.stackingPending or ns.sizePending then return "Névtábla-rendezés: alkalmazás harc után." end
     if ns.stackingFailure then return ns.stackingFailure end
     if ns.sizeFailure=="restore" then return "A Blizzard névtábla-terület mérete /reload után áll vissza." end
+    if not ns.db.enabled then return "Névtábla-rendezés: az addon ki van kapcsolva, a Blizzard Motion Type beállítása érvényes." end
     if not ns.db.stackPlates then return "Névtáblák: átfedő (Blizzard nameplateMotion 0)." end
     if ns.sizeFailure=="unavailable" then return "Egymás fölé rendezve; a kliens nem engedi a terület méretezését, a keretek részben átfedhetnek." end
     if ns.sizeFailure=="failed" then return "Egymás fölé rendezve; a terület méretezése sikertelen, a keretek részben átfedhetnek." end
@@ -186,7 +190,7 @@ function ns.SetOption(key,value)
     if validated==nil then return false end
     ns.db[key]=validated
     if key=="distance" then ns.ApplyDistance() end
-    if key=="stackPlates" then ns.ApplyStacking() end
+    if key=="stackPlates" or key=="enabled" then ns.ApplyStacking() end
     if ns.ApplyOptions then ns.ApplyOptions() end
     if ns.UpdateOptions then ns.UpdateOptions() end
     return true
