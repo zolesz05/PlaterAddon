@@ -105,6 +105,10 @@ do
         local badgeLeft=nx+bx-bw
         eq(badgeLeft,-15,"badge left edge")
         if right>badgeLeft then error("holder right edge "..right.." overlaps the quest badge from "..badgeLeft) end
+        -- The fallback icons are sized and placed from auraSize in StylePlate; check the largest size (32 px).
+        local d={};for key,value in pairs(ns.defaults) do d[key]=value end
+        d.auraSize=32
+        ns.StylePlate(f,"classic",d)
         for i,a in ipairs(f.auras) do
             if a==holder then error("holder is aura "..i) end
             local _,arel2,_,aurax=Last(a,"SetPoint")

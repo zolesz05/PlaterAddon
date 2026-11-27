@@ -2,7 +2,8 @@
 --   lua tools/test_defaults.lua
 -- Core.lua and Skins.lua are loaded in TOC order against a stub CreateFrame, then MotevePlatesDB is loaded through
 -- ADDON_LOADED as in the client: a new install gets the Classic skin with DoT prediction on, saved values are kept,
--- and invalid saved values are replaced by the defaults. Exits non-zero on any failure.
+-- and invalid saved values are replaced by the defaults; the debuff icon size (auraSize) is clamped to 14–32 and floored.
+-- Exits non-zero on any failure.
 local root=(arg and arg[0] or ""):match("^(.-)[/\\]?tools[/\\][^/\\]+$") or "."
 if root=="" then root="." end
 local failures,count=0,0
@@ -70,9 +71,38 @@ test("invalid_values_replaced",function()
     eq(ns.db.skin,"classic","skin")
     eq(ns.db.showDotPrediction,true,"showDotPrediction")
 end)
+test("aura_size_fresh_install",function()
+    Load(nil);eq(ns.db.auraSize,19,"auraSize nil db")
+    Load({});eq(ns.db.auraSize,19,"auraSize empty db")
+end)
+test("aura_size_saved_kept",function()
+    Load({auraSize=24});eq(ns.db.auraSize,24,"auraSize")
+    Load({auraSize=14});eq(ns.db.auraSize,14,"auraSize at minimum")
+    Load({auraSize=32});eq(ns.db.auraSize,32,"auraSize at maximum")
+end)
+test("aura_size_clamped",function()
+    Load({auraSize=99});eq(ns.db.auraSize,32,"auraSize above range")
+    Load({auraSize=3});eq(ns.db.auraSize,14,"auraSize below range")
+end)
+test("aura_size_non_number_replaced",function()
+    Load({auraSize="big"});eq(ns.db.auraSize,19,"string auraSize")
+    Load({auraSize=true});eq(ns.db.auraSize,19,"boolean auraSize")
+    Load({auraSize=0/0});eq(ns.db.auraSize,19,"NaN auraSize")
+end)
+test("aura_size_floored",function()
+    Load({auraSize=20.7});eq(ns.db.auraSize,20,"auraSize")
+end)
+test("aura_size_set_option",function()
+    Load(nil)
+    eq(ns.SetOption("auraSize",25),true,"SetOption accepted");eq(ns.db.auraSize,25,"after SetOption")
+    ns.SetOption("auraSize",ns.db.auraSize+10);eq(ns.db.auraSize,32,"+ past the maximum")
+    ns.SetOption("auraSize",13);eq(ns.db.auraSize,14,"- past the minimum")
+    eq(ns.SetOption("auraSize","big"),false,"non-number rejected");eq(ns.db.auraSize,14,"unchanged")
+end)
 test("defaults_table",function()
     eq(ns.defaults.skin,"classic","ns.defaults.skin")
     eq(ns.defaults.showDotPrediction,true,"ns.defaults.showDotPrediction")
+    eq(ns.defaults.auraSize,19,"ns.defaults.auraSize")
 end)
 
 print(string.format("%d/%d passed",count-failures,count))
