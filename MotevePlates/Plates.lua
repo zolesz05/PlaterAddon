@@ -359,6 +359,15 @@ function ns.UpdatePlate(f,auras)
     ns.PlaceThreatText(f,visible)
     if auras then ns.UpdateAuras(f) end
 end
+-- Centre of the base plate plus the offset; while the base plate has the stacked footprint size (ns.sizeApplied),
+-- the frame is shifted so everything it draws sits inside its stacked slot.
+local function Anchor(f)
+    f:ClearAllPoints();f:SetPoint("CENTER",f.base,"CENTER",0,ns.PlateAnchorY(ns.db,ns.sizeApplied))
+end
+function ns.AnchorPlates()
+    if not ns.db then return end
+    for _,f in pairs(ns.active) do Anchor(f) end
+end
 function ns.Attach(unit)
     if not ns.db or not ns.db.enabled or ns.Secret(unit) or type(unit)~="string" then return end
     if ns.Bool(ns.API(UnitCanAttack,"player",unit))~=true then return end
@@ -368,7 +377,7 @@ function ns.Attach(unit)
     if not f then f=ns.CreatePlate(base);f.base=base;pool[base]=f end
     if f.unit and f.unit~=unit then ns.Detach(f.unit) end
     f.unit=unit;ns.active[unit]=f
-    f:ClearAllPoints();f:SetPoint("CENTER",base,"CENTER",0,ns.db.offset)
+    Anchor(f)
     f.revision=nil
     ns.Safe("plate",ns.UpdatePlate,f,true)
     return f
@@ -388,10 +397,9 @@ function ns.RefreshAll()
 end
 function ns.ApplyOptions()
     revision=revision+1
-    for _,f in pairs(ns.active) do
-        f.questNextCheck=nil
-        f:ClearAllPoints();f:SetPoint("CENTER",f.base,"CENTER",0,ns.db.offset)
-    end
+    for _,f in pairs(ns.active) do f.questNextCheck=nil end
+    ns.ApplyPlateSize()
+    ns.AnchorPlates()
     ns.Dots.Sync()
     ns.RefreshAll()
 end

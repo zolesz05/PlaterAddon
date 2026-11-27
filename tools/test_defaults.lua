@@ -2,7 +2,8 @@
 --   lua tools/test_defaults.lua
 -- Core.lua and Skins.lua are loaded in TOC order against a stub CreateFrame, then MotevePlatesDB is loaded through
 -- ADDON_LOADED as in the client: a new install gets the Classic skin with DoT prediction on, saved values are kept,
--- and invalid saved values are replaced by the defaults; the debuff icon size (auraSize) is clamped to 14–32 and floored.
+-- and invalid saved values are replaced by the defaults; the debuff icon size (auraSize) is clamped to 14–32 and floored,
+-- and plate stacking (stackPlates) is on by default and only takes a boolean.
 -- Exits non-zero on any failure.
 local root=(arg and arg[0] or ""):match("^(.-)[/\\]?tools[/\\][^/\\]+$") or "."
 if root=="" then root="." end
@@ -99,10 +100,28 @@ test("aura_size_set_option",function()
     ns.SetOption("auraSize",13);eq(ns.db.auraSize,14,"- past the minimum")
     eq(ns.SetOption("auraSize","big"),false,"non-number rejected");eq(ns.db.auraSize,14,"unchanged")
 end)
+test("stack_plates_fresh_install",function()
+    Load(nil);eq(ns.db.stackPlates,true,"stackPlates nil db")
+    Load({});eq(ns.db.stackPlates,true,"stackPlates empty db")
+end)
+test("stack_plates_saved_kept",function()
+    Load({stackPlates=false});eq(ns.db.stackPlates,false,"saved false")
+    Load({stackPlates=true});eq(ns.db.stackPlates,true,"saved true")
+end)
+test("stack_plates_invalid_replaced",function()
+    Load({stackPlates="igen"});eq(ns.db.stackPlates,true,"string stackPlates")
+    Load({stackPlates=1});eq(ns.db.stackPlates,true,"number stackPlates")
+end)
+test("stack_plates_set_option",function()
+    Load(nil)
+    eq(ns.SetOption("stackPlates",false),true,"SetOption accepted");eq(ns.db.stackPlates,false,"after SetOption")
+    eq(ns.SetOption("stackPlates","off"),false,"non-boolean rejected");eq(ns.db.stackPlates,false,"unchanged")
+end)
 test("defaults_table",function()
     eq(ns.defaults.skin,"classic","ns.defaults.skin")
     eq(ns.defaults.showDotPrediction,true,"ns.defaults.showDotPrediction")
     eq(ns.defaults.auraSize,19,"ns.defaults.auraSize")
+    eq(ns.defaults.stackPlates,true,"ns.defaults.stackPlates")
 end)
 
 print(string.format("%d/%d passed",count-failures,count))
