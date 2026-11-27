@@ -1,0 +1,43 @@
+name: checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Lua 5.1
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y lua5.1
+
+      - name: Lua tests
+        run: |
+          for test in tools/test_*.lua; do
+            echo "::group::$test"
+            lua5.1 "$test"
+            echo "::endgroup::"
+          done
+
+      - name: Version check tests
+        run: python3 tools/test_check_version.py
+
+      - name: Version and changelog
+        run: python3 tools/check_version.py
+
+      - name: Version bump against the base branch
+        if: github.event_name == 'pull_request'
+        run: python3 tools/check_version.py --base "origin/${{ github.base_ref }}"
+
+      - name: Package smoke build
+        run: python3 tools/package_addon.py --out "$RUNNER_TEMP/MotevePlates.zip"

@@ -136,7 +136,11 @@ end
 test("toc_lists_combo_between_dots_and_plates",function()
     local file=assert(io.open(root.."/MotevePlates/MotevePlates.toc","r"))
     local text=file:read("*a");file:close()
-    eq(text:match("## Version:%s*(%S+)"),"0.2.13","version")
+    local version=text:match("## Version:%s*(%S+)")
+    if not (version and version:match("^%d+%.%d+%.%d+$")) then error("TOC version is not x.y.z: "..tostring(version)) end
+    local readme=assert(io.open(root.."/MotevePlates/README.txt","r"))
+    local first=readme:read("*l");readme:close()
+    eq(first:match("^Moteve Plates (%S+)"),version,"README.txt line 1 version")
     if not text:find("\nDots.lua\r?\nCombo.lua\r?\nPlates.lua\r?\n") then error("Combo.lua not between Dots.lua and Plates.lua") end
 end)
 
